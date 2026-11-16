@@ -649,11 +649,6 @@ public final class Iptv {
                 List<Channel> list = channels(s);
                 if (s.xtream()) liveCategories(s);
                 loadGuide(s, false);
-                int n = 0;
-                for (Channel c : list) {
-                    if (n++ > 3000) break;
-                    ImageLoader.prefetch(c.logo);
-                }
             } catch (Exception ignored) { }
         }
     }
