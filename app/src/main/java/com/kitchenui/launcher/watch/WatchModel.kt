@@ -187,7 +187,7 @@ class WatchModel(ctx: Context, private val scope: CoroutineScope) {
             runCatching { ctx.startActivity(Intent.createChooser(i, "Play with")) }
             return
         }
-        ctx.startActivity(info.into(Intent(ctx, PlayerActivity::class.java)).putExtra("url", url).putExtra("source", source))
+        VideoSession.play(ctx, info, url, source)
     }
 
     private fun view(ctx: Context, url: String) {

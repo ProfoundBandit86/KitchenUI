@@ -11,6 +11,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import com.kitchenui.launcher.watch.LiveScreen
+import com.kitchenui.launcher.watch.PlayerScreen
+import com.kitchenui.launcher.watch.VideoSession
 import com.kitchenui.launcher.watch.WatchModel
 import com.kitchenui.launcher.watch.WatchScreen
 import androidx.core.view.WindowCompat
@@ -21,6 +23,7 @@ import com.kitchenui.launcher.ui.AppDrawer
 import com.kitchenui.launcher.ui.CookScreen
 import com.kitchenui.launcher.ui.DesignCanvas
 import com.kitchenui.launcher.ui.HomeScreen
+import com.kitchenui.launcher.ui.RecipesScreen
 import com.kitchenui.launcher.ui.SettingsPanel
 import kotlinx.coroutines.delay
 
@@ -47,12 +50,18 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
-        state.playing = true   // another screen (player or app) is in front: don't install updates now
+        state.playing = true   // another app is in front: don't install updates now
+    }
+
+    override fun onStop() {
+        super.onStop()
+        VideoSession.pause()   // another app took the screen; resume from the now playing card
     }
 
     override fun onDestroy() {
         super.onDestroy()
         state.media.stop()
+        if (isFinishing) VideoSession.close()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -64,6 +73,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         state.showSettings = false
+        VideoSession.fullScreen = false
         if (state.screen !is Screen.Cook) state.screen = Screen.Home
     }
 
@@ -109,9 +119,20 @@ fun KitchenApp(s: KitchenState) {
         }
     }
 
+    // A video started in Watch or Live TV: show it split with the kitchen.
+    val seen = remember { intArrayOf(VideoSession.opened) }
+    LaunchedEffect(VideoSession.opened) {
+        if (VideoSession.opened != seen[0]) {
+            seen[0] = VideoSession.opened
+            VideoSession.fullScreen = false
+            s.screen = Screen.Player
+        }
+    }
+
     BackHandler(enabled = true) {
         when {
             s.showSettings -> s.showSettings = false
+            s.screen == Screen.Player && VideoSession.fullScreen -> VideoSession.fullScreen = false
             s.screen != Screen.Home -> s.screen = Screen.Home
         }
     }
@@ -127,6 +148,8 @@ fun KitchenApp(s: KitchenState) {
             Screen.Drawer -> AppDrawer(s)
             Screen.Watch -> WatchScreen(s, watch)
             Screen.Live -> LiveScreen(s, watch)
+            Screen.Recipes -> RecipesScreen(s)
+            Screen.Player -> PlayerScreen(s)
         }
         if (s.showSettings) SettingsPanel(s)
     }

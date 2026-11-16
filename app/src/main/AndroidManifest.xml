@@ -30,13 +30,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".watch.PlayerActivity"
-            android:exported="false"
-            android:screenOrientation="sensorLandscape"
-            android:configChanges="orientation|screenSize|screenLayout|keyboard|keyboardHidden|navigation|density|smallestScreenSize"
-            android:theme="@style/Theme.KitchenUI.Player" />
-
         <service
             android:name=".MediaListener"
             android:exported="true"

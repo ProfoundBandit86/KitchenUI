@@ -48,6 +48,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kitchenui.launcher.DOCK_LIVE
+import com.kitchenui.launcher.DOCK_RECIPES
 import com.kitchenui.launcher.DOCK_WATCH
 import com.kitchenui.launcher.KitchenState
 import com.kitchenui.launcher.Screen
@@ -55,6 +56,7 @@ import com.kitchenui.launcher.UpdateState
 import com.kitchenui.launcher.Weather
 import com.kitchenui.launcher.formatClock
 import com.kitchenui.launcher.formatMinutes
+import com.kitchenui.launcher.watch.VideoSession
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -146,7 +148,7 @@ private fun WeatherCard(s: KitchenState) {
 }
 
 @Composable
-private fun TimersCard(s: KitchenState, modifier: Modifier) {
+internal fun TimersCard(s: KitchenState, modifier: Modifier) {
     val tm = s.timers
     Card(modifier, padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp), spacing = 12.dp) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -189,10 +191,8 @@ private fun TimersCard(s: KitchenState, modifier: Modifier) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CenterColumn(s: KitchenState, modifier: Modifier) {
-    var tab by remember { mutableStateOf("All") }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(23.dp)) {
         val r = s.tonight
         val shape = RoundedCornerShape(23.dp)
@@ -223,9 +223,23 @@ private fun CenterColumn(s: KitchenState, modifier: Modifier) {
             }
         }
 
+        if (VideoSession.active || s.media.active) {
+            NowPlayingCard(s, Modifier.weight(1f).fillMaxWidth())
+        } else {
+            RecipeShelf(s, Modifier.weight(1f).fillMaxWidth())
+        }
+    }
+}
+
+/** The recipe book strip on the home screen; it gives way to the now playing card while media plays. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun RecipeShelf(s: KitchenState, modifier: Modifier) {
+    var tab by remember { mutableStateOf("All") }
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(15.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Recipe book", fontSize = 23.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            val cats = listOf("All") + s.recipes.map { it.category }.distinct()
+            Text("Recipe book", fontSize = 23.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f).clickable { s.screen = Screen.Recipes })
+            val cats = listOf("All") + s.recipes.map { it.category }.distinct().take(3)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 cats.forEach { c ->
                     val sel = c == tab
@@ -254,11 +268,6 @@ private fun CenterColumn(s: KitchenState, modifier: Modifier) {
                     Box(Modifier.fillMaxWidth().weight(1f).background(Color(rec.color)), contentAlignment = Alignment.Center) {
                         if (rec.photoUrl != null) {
                             AsyncImage(model = rec.photoUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                        }
-                        if (rec.id == s.tonight?.id) {
-                            Box(Modifier.align(Alignment.TopEnd).padding(8.dp).size(36.dp).clip(RoundedCornerShape(18.dp)).background(K.Bg.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) {
-                                Icon(Glyph.STAR, K.Accent, 22.dp)
-                            }
                         }
                     }
                     Column(Modifier.padding(horizontal = 15.dp, vertical = 13.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -337,7 +346,7 @@ private fun eventWhen(date: LocalDate, start: ZonedDateTime, allDay: Boolean, to
 }
 
 @Composable
-private fun ShoppingCard(s: KitchenState, modifier: Modifier) {
+internal fun ShoppingCard(s: KitchenState, modifier: Modifier) {
     var draft by remember { mutableStateOf("") }
     Card(modifier, padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp), spacing = 8.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -349,6 +358,7 @@ private fun ShoppingCard(s: KitchenState, modifier: Modifier) {
                 Text("$left to get", color = K.Muted, fontSize = 15.sp)
             }
         }
+        SendToRow(s)
         LazyColumn(Modifier.weight(1f)) {
             itemsIndexed(s.shopping) { i, item ->
                 Row(
@@ -364,6 +374,9 @@ private fun ShoppingCard(s: KitchenState, modifier: Modifier) {
                     )
                 }
             }
+        }
+        if (s.mailStatus.isNotBlank()) {
+            Text(s.mailStatus, color = if (s.mailStatus.startsWith("Couldn't")) Color(0xFFE58F8F) else K.Sage, fontSize = 14.sp, maxLines = 2)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val add = { s.addShop(draft); draft = "" }
@@ -388,11 +401,33 @@ private fun ShoppingCard(s: KitchenState, modifier: Modifier) {
     }
 }
 
+/** "Send to Tom" buttons, one per household member. */
+@Composable
+private fun SendToRow(s: KitchenState) {
+    if (s.members.isEmpty()) return
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(s.members) { m ->
+            val shape = RoundedCornerShape(12.dp)
+            Row(
+                Modifier.height(40.dp).clip(shape).background(K.Surface2).border(1.dp, K.Border2, shape)
+                    .clickable(enabled = !s.mailSending) { s.sendList(m) }
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(Glyph.MAIL, K.Accent, 20.dp)
+                Text("Send to ${m.name}", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            }
+        }
+    }
+}
+
 @Composable
 private fun Dock(s: KitchenState) {
     val shape = RoundedCornerShape(23.dp)
     val updating = s.update is UpdateState.Ready || s.update is UpdateState.Installing || s.update is UpdateState.Downloading
-    val showMedia = !s.editDock && (s.media.active || !s.media.granted)
+    // Now playing lives in the middle of the home screen; the dock only asks for access.
+    val showMedia = !s.editDock && !s.media.granted
     // Room for 9 tiles; the update badge takes 3 and the media player 4.
     val room = if (s.editDock) 12 else 9 - (if (updating) 3 else 0) - (if (showMedia) 4 else 0)
     val items = s.dockItems
@@ -414,6 +449,10 @@ private fun Dock(s: KitchenState) {
                 DOCK_LIVE -> {
                     label = "Live TV"; open = { s.screen = Screen.Live }
                     icon = { Box(Modifier.size(70.dp).clip(RoundedCornerShape(18.dp)).background(Color(0xFF3D5A80)), contentAlignment = Alignment.Center) { Icon(Glyph.TV, K.Text, 36.dp) } }
+                }
+                DOCK_RECIPES -> {
+                    label = "Recipe book"; open = { s.screen = Screen.Recipes }
+                    icon = { Box(Modifier.size(70.dp).clip(RoundedCornerShape(18.dp)).background(Color(0xFF6B4C7A)), contentAlignment = Alignment.Center) { Icon(Glyph.BOOK, K.Text, 36.dp) } }
                 }
                 else -> {
                     val app = s.app(id) ?: return@forEachIndexed
@@ -489,39 +528,20 @@ private fun EditTile(
     }
 }
 
-/** Now playing from any app, with previous / play-pause / next. */
+/** Asks for notification access so the home screen can show what other apps are playing. */
 @Composable
 private fun MediaWidget(s: KitchenState) {
-    val m = s.media
     val shape = RoundedCornerShape(18.dp)
     Row(
         Modifier.width(420.dp).height(96.dp).clip(shape).background(K.Surface2).border(1.dp, K.Border, shape).padding(10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (!m.granted) {
-            Column(Modifier.weight(1f)) {
-                Text("Media controls", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                Text("Allow notification access to see what's playing", color = K.Muted, fontSize = 14.sp, maxLines = 2)
-            }
-            Btn("Allow", { m.requestAccess() }, primary = true, height = 46.dp, fontSize = 16)
-            return@Row
+        Column(Modifier.weight(1f).padding(start = 6.dp)) {
+            Text("Media controls", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Text("Allow notification access to see what's playing", color = K.Muted, fontSize = 14.sp, maxLines = 2)
         }
-        Box(
-            Modifier.size(76.dp).clip(RoundedCornerShape(12.dp)).background(K.Border).clickable { m.openApp() },
-            contentAlignment = Alignment.Center,
-        ) {
-            val art = m.art
-            if (art != null) Image(art, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            else Icon(Glyph.PLAY, K.Muted, 30.dp)
-        }
-        Column(Modifier.weight(1f).clickable { m.openApp() }) {
-            Text(m.title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(listOf(m.artist, m.appName).filter { it.isNotBlank() }.joinToString(" · "), color = K.Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        IconBtn(Glyph.BACK, { m.previous() }, size = 44.dp)
-        IconBtn(if (m.playing) Glyph.PAUSE else Glyph.PLAY, { m.playPause() }, primary = true, size = 52.dp)
-        IconBtn(Glyph.NEXT, { m.next() }, size = 44.dp)
+        Btn("Allow", { s.media.requestAccess() }, primary = true, height = 46.dp, fontSize = 16)
     }
 }
 

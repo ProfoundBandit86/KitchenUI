@@ -15,6 +15,9 @@ sealed interface Screen {
     data object Drawer : Screen
     data object Watch : Screen
     data object Live : Screen
+    data object Recipes : Screen
+    /** KitchenUI's own video player: split with the kitchen, or full screen. */
+    data object Player : Screen
 }
 
 class KitchenState(private val ctx: Context, private val scope: CoroutineScope) {
@@ -45,6 +48,14 @@ class KitchenState(private val ctx: Context, private val scope: CoroutineScope) 
 
     val shopping = mutableStateListOf<ShopItem>().apply { addAll(prefs.loadShop()) }
     val timers = TimerManager()
+
+    var members by mutableStateOf(prefs.loadMembers())
+        private set
+    var mail by mutableStateOf(prefs.mail)
+        private set
+    /** Shown under the shopping list after "Send to …". */
+    var mailStatus by mutableStateOf("")
+    var mailSending by mutableStateOf(false)
 
     var apps by mutableStateOf<List<AppEntry>>(emptyList())
     var update by mutableStateOf<UpdateState>(UpdateState.Idle)
@@ -92,6 +103,43 @@ class KitchenState(private val ctx: Context, private val scope: CoroutineScope) 
         prefs.saveShop(shopping)
     }
 
+    fun saveMembers(list: List<Member>) {
+        val clean = list.filter { it.name.isNotBlank() && it.email.contains('@') }
+            .map { Member(it.name.trim(), it.email.trim()) }
+        members = clean
+        prefs.saveMembers(clean)
+    }
+
+    fun saveMail(a: MailAccount) {
+        mail = a.copy(email = a.email.trim(), password = a.password.replace(" ", ""), host = a.host.trim())
+        prefs.mail = mail
+    }
+
+    /** Emails the items still to get to one household member. */
+    fun sendList(to: Member) {
+        val items = shopping.filter { !it.done }.map { it.name }
+        if (items.isEmpty()) { mailStatus = "Nothing to get, so nothing was sent"; return }
+        if (!mail.ready) { mailStatus = "Set up email in Settings › Household first"; return }
+        mailSending = true
+        mailStatus = "Sending to ${to.name}…"
+        scope.launch {
+            mailStatus = try {
+                Mailer.sendList(mail, to, items)
+                "Sent ${items.size} item${if (items.size == 1) "" else "s"} to ${to.name}"
+            } catch (e: Exception) {
+                "Couldn't send: ${e.message ?: "check the email settings"}"
+            }
+            mailSending = false
+        }
+    }
+
+    suspend fun sendTest(to: Member): String = try {
+        Mailer.sendTest(mail, to)
+        "Test sent to ${to.email}"
+    } catch (e: Exception) {
+        "Couldn't send: ${e.message ?: "check the settings"}"
+    }
+
     // Apps
     fun refreshApps() {
         apps = Apps.load(ctx)
@@ -103,9 +151,18 @@ class KitchenState(private val ctx: Context, private val scope: CoroutineScope) 
             saveSettings(settings.copy(pinned = listOf(DOCK_WATCH, DOCK_LIVE) + settings.pinned.filter { !it.startsWith("@") }))
             prefs.dockV2 = true
         }
+        if (!prefs.dockV3) {
+            // The recipe book became its own dock item.
+            val p = settings.pinned
+            if (DOCK_RECIPES !in p) {
+                val at = (p.indexOf(DOCK_LIVE) + 1).coerceAtLeast(0).coerceAtMost(p.size)
+                saveSettings(settings.copy(pinned = (p.take(at) + DOCK_RECIPES + p.drop(at)).take(12)))
+            }
+            prefs.dockV3 = true
+        }
     }
 
-    /** Dock items in order: DOCK_WATCH, DOCK_LIVE or an installed app's package. */
+    /** Dock items in order: DOCK_WATCH, DOCK_LIVE, DOCK_RECIPES or an installed app's package. */
     val dockItems: List<String>
         get() = settings.pinned.filter { it.startsWith("@") || apps.any { a -> a.pkg == it } }
 
@@ -248,7 +305,8 @@ class KitchenState(private val ctx: Context, private val scope: CoroutineScope) 
         }
     }
 
-    private fun isIdle() = screen == Screen.Home && !timers.anyRunning && !showSettings && !playing
+    private fun isIdle() = screen == Screen.Home && !timers.anyRunning && !showSettings && !playing &&
+        !com.kitchenui.launcher.watch.VideoSession.active
 
     /** True while the video player is open, so updates never interrupt a movie. */
     var playing = false

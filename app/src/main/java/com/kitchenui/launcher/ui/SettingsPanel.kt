@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kitchenui.launcher.BuildConfig
 import com.kitchenui.launcher.KitchenState
+import com.kitchenui.launcher.MailAccount
+import com.kitchenui.launcher.Member
 import com.kitchenui.launcher.UpdateState
 import kotlinx.coroutines.launch
 
@@ -114,6 +116,7 @@ fun SettingsPanel(s: KitchenState) {
                         if (s.paprikaStatus.isNotEmpty()) Text(s.paprikaStatus, color = K.Muted, fontSize = 15.sp)
                     }
                 }
+                Section("Household") { HouseholdSettings(s) }
                 Section("Google Calendar") {
                     Text(
                         "In Google Calendar on a computer: Settings › your calendar › Integrate calendar › Secret address in iCal format. Paste it here.",
@@ -205,4 +208,76 @@ private fun Toggle(label: String, on: Boolean, onChange: (Boolean) -> Unit) {
             Box(Modifier.size(26.dp).clip(RoundedCornerShape(13.dp)).background(if (on) K.Bg else K.Text))
         }
     }
+}
+
+/** Household members get a "Send to …" button on the shopping list; the account below sends the email. */
+@Composable
+private fun HouseholdSettings(s: KitchenState) {
+    val scope = rememberCoroutineScope()
+    var name by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var addStatus by remember { mutableStateOf("") }
+    Text("Everyone here gets a \"Send to\" button on the shopping list, which emails them what's left to get.", color = K.Muted, fontSize = 15.sp)
+    s.members.forEach { m ->
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(K.Surface2).padding(horizontal = 16.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(m.name, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(180.dp))
+            Text(m.email, color = K.Muted, fontSize = 17.sp, modifier = Modifier.weight(1f))
+            IconBtn(Glyph.CLOSE, { s.saveMembers(s.members - m) }, size = 40.dp)
+        }
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Input(name, { name = it }, "Name", Modifier.width(220.dp))
+        Input(email, { email = it }, "Email address", Modifier.weight(1f))
+        Btn("Add", {
+            when {
+                name.isBlank() -> addStatus = "Enter a name"
+                !email.contains('@') || !email.substringAfter('@').contains('.') -> addStatus = "Enter a valid email address"
+                else -> {
+                    s.saveMembers(s.members + Member(name, email))
+                    name = ""; email = ""; addStatus = ""
+                }
+            }
+        }, primary = true, height = 48.dp)
+    }
+    if (addStatus.isNotEmpty()) Text(addStatus, color = Color(0xFFE58F8F), fontSize = 15.sp)
+
+    Text("Send from", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
+    Text(
+        "Use a Gmail address and an app password (Google Account › Security › 2-Step Verification › App passwords). " +
+            "Your normal Gmail password won't work.",
+        color = K.Muted, fontSize = 15.sp,
+    )
+    var acct by remember { mutableStateOf(s.mail) }
+    var portText by remember { mutableStateOf(s.mail.port.toString()) }
+    var status by remember { mutableStateOf("") }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Input(acct.email, { acct = acct.copy(email = it) }, "you@gmail.com", Modifier.weight(1f))
+        Input(acct.password, { acct = acct.copy(password = it) }, "App password", Modifier.weight(1f), password = true)
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Input(acct.host, { acct = acct.copy(host = it) }, "smtp.gmail.com", Modifier.weight(1f))
+        Input(portText, { portText = it.filter { c -> c.isDigit() }.take(5) }, "465", Modifier.width(110.dp))
+        Btn("Save", {
+            s.saveMail(MailAccount(acct.email, acct.password, acct.host.ifBlank { "smtp.gmail.com" }, portText.toIntOrNull() ?: 465))
+            status = "Saved"
+        }, height = 48.dp)
+        val first = s.members.firstOrNull()
+        Btn(if (first != null) "Send test to ${first.name}" else "Send test", {
+            s.saveMail(MailAccount(acct.email, acct.password, acct.host.ifBlank { "smtp.gmail.com" }, portText.toIntOrNull() ?: 465))
+            val to = first ?: Member("Me", acct.email.trim())
+            status = "Sending…"
+            scope.launch { status = s.sendTest(to) }
+        }, primary = true, height = 48.dp)
+    }
+    if (status.isNotEmpty()) Text(status, color = if (status.startsWith("Couldn't")) Color(0xFFE58F8F) else K.Muted, fontSize = 15.sp)
+    Text(
+        "So the list is never buried: it's sent from your own account, flagged high priority, and the subject always starts " +
+            "\"KitchenUI shopping list\". In Gmail, make one filter for that subject with \"Never send it to Spam\", " +
+            "\"Always mark it as important\" and \"Star it\". The email reminds everyone how.",
+        color = K.Dim, fontSize = 14.sp,
+    )
 }

@@ -19,6 +19,14 @@ data class Settings(
 
 data class ShopItem(val name: String, val done: Boolean)
 
+/** Someone in the house the shopping list can be emailed to. */
+data class Member(val name: String, val email: String)
+
+/** The account KitchenUI sends email from (Gmail with an app password by default). */
+data class MailAccount(val email: String = "", val password: String = "", val host: String = "smtp.gmail.com", val port: Int = 465) {
+    val ready: Boolean get() = email.isNotBlank() && password.isNotBlank() && host.isNotBlank()
+}
+
 class Prefs(ctx: Context) {
     private val sp = ctx.getSharedPreferences("kitchen", Context.MODE_PRIVATE)
 
@@ -85,4 +93,33 @@ class Prefs(ctx: Context) {
         items.forEach { a.put(JSONObject().put("n", it.name).put("d", it.done)) }
         sp.edit().putString("shop", a.toString()).apply()
     }
+
+    fun loadMembers(): List<Member> = try {
+        val a = JSONArray(sp.getString("members", "[]"))
+        (0 until a.length()).map { val o = a.getJSONObject(it); Member(o.optString("n"), o.optString("e")) }
+    } catch (e: Exception) {
+        emptyList()
+    }
+
+    fun saveMembers(list: List<Member>) {
+        val a = JSONArray()
+        list.forEach { a.put(JSONObject().put("n", it.name).put("e", it.email)) }
+        sp.edit().putString("members", a.toString()).apply()
+    }
+
+    var mail: MailAccount
+        get() = MailAccount(
+            email = sp.getString("mailEmail", "") ?: "",
+            password = sp.getString("mailPassword", "") ?: "",
+            host = sp.getString("mailHost", "smtp.gmail.com") ?: "smtp.gmail.com",
+            port = sp.getInt("mailPort", 465),
+        )
+        set(v) {
+            sp.edit().putString("mailEmail", v.email).putString("mailPassword", v.password)
+                .putString("mailHost", v.host).putInt("mailPort", v.port).apply()
+        }
+
+    var dockV3: Boolean
+        get() = sp.getBoolean("dockV3", false)
+        set(v) { sp.edit().putBoolean("dockV3", v).apply() }
 }

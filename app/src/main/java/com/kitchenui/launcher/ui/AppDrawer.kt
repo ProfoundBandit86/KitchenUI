@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kitchenui.launcher.DOCK_LIVE
+import com.kitchenui.launcher.DOCK_RECIPES
 import com.kitchenui.launcher.DOCK_WATCH
 import com.kitchenui.launcher.KitchenState
 import com.kitchenui.launcher.Screen
@@ -39,6 +40,7 @@ fun AppDrawer(s: KitchenState) {
             Text("All apps", fontFamily = K.Serif, fontSize = 40.sp, modifier = Modifier.weight(1f))
             if (DOCK_WATCH !in s.settings.pinned) Btn("Add Watch to dock", { s.togglePin(DOCK_WATCH) }, height = 46.dp, fontSize = 16)
             if (DOCK_LIVE !in s.settings.pinned) Btn("Add Live TV to dock", { s.togglePin(DOCK_LIVE) }, height = 46.dp, fontSize = 16)
+            if (DOCK_RECIPES !in s.settings.pinned) Btn("Add Recipe book to dock", { s.togglePin(DOCK_RECIPES) }, height = 46.dp, fontSize = 16)
             Text("Press and hold an app to add or remove it from the dock", color = K.Muted, fontSize = 17.sp)
         }
         LazyVerticalGrid(

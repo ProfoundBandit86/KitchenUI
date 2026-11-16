@@ -153,7 +153,7 @@ fun CheckBox(checked: Boolean, size: Dp = 26.dp) {
     ) { if (checked) Icon(Glyph.CHECK, K.Bg, size * 0.65f) }
 }
 
-enum class Glyph { PLAY, PAUSE, CLOSE, CHECK, BACK, NEXT, GEAR, GRID, DOWNLOAD, PLUS, CALENDAR, POT, STAR, TV, SEARCH, HEART }
+enum class Glyph { PLAY, PAUSE, CLOSE, CHECK, BACK, NEXT, GEAR, GRID, DOWNLOAD, PLUS, CALENDAR, POT, STAR, TV, SEARCH, HEART, BOOK, MAIL, EXPAND, SPLIT, REWIND, FORWARD, SKIP_BACK, SKIP_NEXT }
 
 @Composable
 fun Icon(glyph: Glyph, color: Color, size: Dp, modifier: Modifier = Modifier) {
@@ -220,6 +220,42 @@ fun Icon(glyph: Glyph, color: Color, size: Dp, modifier: Modifier = Modifier) {
                 cubicTo(w * 0.94f, w * 0.3f, w * 0.9f, w * 0.56f, w * 0.5f, w * 0.84f)
                 close()
             }, color)
+            Glyph.BOOK -> {
+                drawPath(Path().apply {
+                    moveTo(w * 0.2f, w * 0.2f); lineTo(w * 0.8f, w * 0.2f); lineTo(w * 0.8f, w * 0.82f); lineTo(w * 0.28f, w * 0.82f)
+                    lineTo(w * 0.2f, w * 0.74f); close()
+                }, color, style = stroke)
+                line(0.36f, 0.38f, 0.66f, 0.38f); line(0.36f, 0.54f, 0.58f, 0.54f)
+            }
+            Glyph.MAIL -> {
+                drawRoundRect(color, p(0.12f, 0.24f), Size(w * 0.76f, w * 0.52f), CornerRadius(w * 0.08f), style = stroke)
+                drawPath(Path().apply { moveTo(w * 0.16f, w * 0.3f); lineTo(w * 0.5f, w * 0.54f); lineTo(w * 0.84f, w * 0.3f) }, color, style = stroke)
+            }
+            Glyph.EXPAND -> {
+                line(0.16f, 0.38f, 0.16f, 0.16f); line(0.16f, 0.16f, 0.38f, 0.16f)
+                line(0.62f, 0.16f, 0.84f, 0.16f); line(0.84f, 0.16f, 0.84f, 0.38f)
+                line(0.16f, 0.62f, 0.16f, 0.84f); line(0.16f, 0.84f, 0.38f, 0.84f)
+                line(0.62f, 0.84f, 0.84f, 0.84f); line(0.84f, 0.84f, 0.84f, 0.62f)
+            }
+            Glyph.SPLIT -> {
+                drawRoundRect(color, p(0.12f, 0.2f), Size(w * 0.76f, w * 0.6f), CornerRadius(w * 0.08f), style = stroke)
+                line(0.56f, 0.2f, 0.56f, 0.8f)
+            }
+            Glyph.REWIND, Glyph.FORWARD -> {
+                val back = glyph == Glyph.REWIND
+                drawArc(color, if (back) 200f else -20f, if (back) 250f else -250f, false, p(0.18f, 0.18f), Size(w * 0.64f, w * 0.64f), style = stroke)
+                val tip = if (back) p(0.2f, 0.36f) else p(0.8f, 0.36f)
+                drawLine(color, tip, Offset(tip.x, tip.y - w * 0.2f), strokeWidth = sw, cap = StrokeCap.Round)
+                drawLine(color, tip, Offset(tip.x + (if (back) w * 0.2f else -w * 0.2f), tip.y), strokeWidth = sw, cap = StrokeCap.Round)
+            }
+            Glyph.SKIP_BACK -> {
+                drawRoundRect(color, p(0.18f, 0.2f), Size(w * 0.12f, w * 0.6f), CornerRadius(w * 0.03f))
+                drawPath(Path().apply { moveTo(w * 0.82f, w * 0.2f); lineTo(w * 0.36f, w * 0.5f); lineTo(w * 0.82f, w * 0.8f); close() }, color)
+            }
+            Glyph.SKIP_NEXT -> {
+                drawRoundRect(color, p(0.7f, 0.2f), Size(w * 0.12f, w * 0.6f), CornerRadius(w * 0.03f))
+                drawPath(Path().apply { moveTo(w * 0.18f, w * 0.2f); lineTo(w * 0.64f, w * 0.5f); lineTo(w * 0.18f, w * 0.8f); close() }, color)
+            }
             Glyph.STAR -> drawPath(Path().apply {
                 for (i in 0 until 10) {
                     val rr = if (i % 2 == 0) w * 0.45f else w * 0.2f

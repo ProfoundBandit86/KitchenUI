@@ -44,12 +44,14 @@ Open **Watch › Sources**:
 - **Real-Debrid:** sign in with a code at real-debrid.com/device, or paste your API token.
 - **IPTV:** an Xtream Codes login (server, username, password), or an M3U playlist with an optional guide link. Turn on *Provider movies & series* to add the provider's VOD to Watch.
 
-In the player, tap the video to show the controls. Drag the bar to seek, and use the gear for audio and subtitle tracks. *Other player* hands the stream to VLC or another installed app.
+Videos open **split screen**: the video on the left, and the kitchen on the right with a **Home / Recipe book** switch (weather, timers, tonight's dinner, shopping list, or your recipes with ingredients and steps). Tap the video or *Full screen* to fill the screen; *Split screen* or Back returns. Go Home and the video keeps playing in the now playing card in place of the recipe book. In full screen, tap the video for the seek bar and the gear for audio and subtitle tracks. *Other player* hands the stream to VLC or another installed app.
 
 ## Using it
 
 - **Paprika:** sign in from **Settings › Paprika 3 recipes** with your Paprika Cloud Sync email and password.
-- **Recipe cards:** tap to start cooking. Press and hold to make that recipe tonight's dinner.
+- **Recipe book:** the dock button opens every recipe with search (names and ingredients) and categories. Tap to start cooking. Press and hold to make that recipe tonight's dinner.
+- **Now playing:** while anything plays (KitchenUI's own videos, or music and video from other apps once media controls are allowed), a now playing card replaces the recipe book on the home screen.
+- **Emailing the shopping list:** in **Settings › Household**, add each person's name and email, then a Gmail address and [app password](https://myaccount.google.com/apppasswords) to send from. The shopping list gets a *Send to NAME* button for each person; it emails what's still unchecked. Emails are flagged high priority and the subject always starts "KitchenUI shopping list", so a Gmail filter on that subject (*Never send it to Spam*, *Always mark it as important*, *Star it*) keeps them on top.
 - **All apps:** press and hold an app to pin it to or unpin it from the dock.
 - **Timers:** tap a finished timer to silence it.
 

@@ -134,17 +134,8 @@ fun LiveScreen(s: KitchenState, m: WatchModel) {
                             contentPadding = PaddingValues(bottom = 30.dp),
                         ) {
                             itemsIndexed(ch) { i, c ->
-                                ChannelCard(src!!, c) {
-                                    ctx.startActivity(
-                                        Intent(ctx, PlayerActivity::class.java)
-                                            .putExtra("live", true)
-                                            .putExtra("live_source", src.id)
-                                            .putExtra("live_cat", if (cat == ALL) null else cat)
-                                            .putExtra("live_index", i)
-                                            .putExtra("url", Iptv.liveUrl(src, c, false))
-                                            .putExtra("pi_name", c.name)
-                                    )
-                                }
+                                val source = src!!
+                                ChannelCard(source, c) { VideoSession.playLive(ctx, source, ch, i) }
                             }
                         }
                     }
