@@ -16,15 +16,23 @@ import java.time.LocalDate
 
 /**
  * Paprika 3 cloud sync (the same account the Paprika apps sync with).
- * Paprika doesn't publish this API; it's the v2 sync API the apps use.
+ * Paprika doesn't publish this API; it's the sync API the apps use (v1 with Basic auth, or v2).
  */
 object Paprika {
-    private const val API = "https://www.paprikaapp.com/api/v2"
+    private const val HOST = "https://www.paprikaapp.com/api"
     private fun cache(ctx: Context) = File(ctx.filesDir, "paprika.json")
 
     class AuthException(msg: String) : IOException(msg)
 
-    private fun auth(token: String) = mapOf("Authorization" to "Bearer $token")
+    /**
+     * The saved credential is "<api version>|<Authorization header>", e.g. "v1|Basic …" or "v2|Bearer …".
+     * Paprika now answers "Unrecognized client" to v2 logins from anything but its own apps,
+     * so v1 with Basic auth is tried first.
+     */
+    private fun parts(cred: String): Pair<String, String> {
+        val i = cred.indexOf('|')
+        return if (i < 0) "v2" to "Bearer $cred" else cred.substring(0, i) to cred.substring(i + 1)
+    }
 
     private fun result(text: String): Any {
         val j = JSONObject(text)
@@ -32,16 +40,37 @@ object Paprika {
         return j.get("result")
     }
 
-    private fun get(path: String, token: String): Any = try {
-        result(Net.get("$API$path", auth(token)))
-    } catch (e: IOException) {
-        if (e.message?.contains("401") == true || e.message?.contains("403") == true) throw AuthException("Paprika sign-in expired")
-        throw e
+    private fun get(path: String, cred: String): Any {
+        val (ver, header) = parts(cred)
+        return try {
+            result(Net.get("$HOST/$ver$path", mapOf("Authorization" to header)))
+        } catch (e: IOException) {
+            if (e.message?.contains("401") == true || e.message?.contains("403") == true) throw AuthException("Paprika sign-in failed or expired")
+            throw e
+        }
     }
 
+    /** Returns the credential to save. */
     suspend fun login(email: String, password: String): String = withContext(Dispatchers.IO) {
-        val r = result(Net.postForm("$API/account/login/", mapOf("email" to email.trim(), "password" to password)))
-        (r as JSONObject).getString("token")
+        val errors = mutableListOf<String>()
+        // 1. v1 + Basic auth (what Paprika still accepts from third-party apps)
+        val basic = "v1|Basic " + android.util.Base64.encodeToString(
+            "${email.trim()}:$password".toByteArray(), android.util.Base64.NO_WRAP,
+        )
+        try {
+            get("/sync/categories/", basic)
+            return@withContext basic
+        } catch (e: Exception) { errors.add("v1: ${e.message}") }
+        // 2. v1 token login, 3. v2 token login
+        for (ver in listOf("v1", "v2")) {
+            try {
+                val r = result(Net.postForm("$HOST/$ver/account/login/", mapOf("email" to email.trim(), "password" to password)))
+                val cred = "$ver|Bearer " + (r as JSONObject).getString("token")
+                get("/sync/categories/", cred)
+                return@withContext cred
+            } catch (e: Exception) { errors.add("$ver: ${e.message}") }
+        }
+        throw AuthException(errors.joinToString("; "))
     }
 
     /** Downloads new and changed recipes (by hash), keeps a local copy, and returns the whole book. */
