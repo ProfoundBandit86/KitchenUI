@@ -52,6 +52,18 @@ class Prefs(ctx: Context) {
         get() = sp.getString("tonight", null)
         set(v) { sp.edit().putString("tonight", v).apply() }
 
+    var paprikaEmail: String
+        get() = sp.getString("paprikaEmail", "") ?: ""
+        set(v) { sp.edit().putString("paprikaEmail", v).apply() }
+
+    var paprikaToken: String
+        get() = sp.getString("paprikaToken", "") ?: ""
+        set(v) { sp.edit().putString("paprikaToken", v).apply() }
+
+    var plannedDay: String
+        get() = sp.getString("plannedDay", "") ?: ""
+        set(v) { sp.edit().putString("plannedDay", v).apply() }
+
     fun loadShop(): List<ShopItem> {
         val raw = sp.getString("shop", null) ?: return listOf(
             ShopItem("Lemons", false), ShopItem("Fresh thyme", false), ShopItem("Butter", false),

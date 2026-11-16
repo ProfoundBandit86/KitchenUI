@@ -13,6 +13,8 @@ sealed interface Screen {
     data object Home : Screen
     data class Cook(val recipeId: String) : Screen
     data object Drawer : Screen
+    data object Watch : Screen
+    data object Live : Screen
 }
 
 class KitchenState(private val ctx: Context, private val scope: CoroutineScope) {
@@ -29,7 +31,15 @@ class KitchenState(private val ctx: Context, private val scope: CoroutineScope) 
     var events by mutableStateOf<List<CalEvent>>(emptyList())
     var calendarError by mutableStateOf<String?>(null)
 
-    var recipes by mutableStateOf(RecipeRepo.loadLocal(ctx))
+    var paprikaEmail by mutableStateOf(prefs.paprikaEmail)
+        private set
+    var paprikaSignedIn by mutableStateOf(prefs.paprikaToken.isNotEmpty())
+        private set
+    var paprikaStatus by mutableStateOf("")
+
+    var recipes by mutableStateOf(
+        if (prefs.paprikaToken.isNotEmpty()) Paprika.loadCached(ctx).ifEmpty { RecipeRepo.loadLocal(ctx) } else RecipeRepo.loadLocal(ctx)
+    )
     var tonightId by mutableStateOf(prefs.tonight)
         private set
 
@@ -123,8 +133,58 @@ class KitchenState(private val ctx: Context, private val scope: CoroutineScope) 
         }
     }
 
+    /** Paprika when signed in, otherwise the recipes.json in the GitHub repo. */
     suspend fun refreshRecipes() {
-        RecipeRepo.refresh(ctx)?.let { recipes = it }
+        val token = prefs.paprikaToken
+        if (token.isEmpty()) {
+            RecipeRepo.refresh(ctx)?.let { recipes = it }
+            return
+        }
+        paprikaStatus = "Syncing with Paprika…"
+        try {
+            val list = Paprika.sync(ctx, token)
+            if (list.isNotEmpty()) recipes = list
+            paprikaStatus = "${list.size} recipes from Paprika"
+            val today = java.time.LocalDate.now().toString()
+            val planned = Paprika.todaysMeal(ctx)
+            if (planned != null && prefs.plannedDay != today && recipes.any { it.id == planned }) {
+                setTonight(planned)
+                prefs.plannedDay = today
+            }
+        } catch (e: Paprika.AuthException) {
+            paprikaStatus = e.message ?: "Paprika sign-in expired"
+        } catch (e: Exception) {
+            paprikaStatus = "Couldn't reach Paprika"
+        }
+    }
+
+    suspend fun paprikaLogin(email: String, password: String): Boolean {
+        paprikaStatus = "Signing in…"
+        return try {
+            val token = Paprika.login(email, password)
+            prefs.paprikaToken = token
+            prefs.paprikaEmail = email.trim()
+            paprikaEmail = email.trim()
+            paprikaSignedIn = true
+            refreshRecipes()
+            true
+        } catch (e: Exception) {
+            paprikaStatus = "Sign-in failed: ${e.message ?: "check your email and password"}"
+            false
+        }
+    }
+
+    fun paprikaSignOut() {
+        prefs.paprikaToken = ""
+        paprikaSignedIn = false
+        paprikaStatus = ""
+        Paprika.clear(ctx)
+        recipes = RecipeRepo.loadLocal(ctx)
+        scope.launch { refreshRecipes() }
+    }
+
+    fun syncRecipesNow() {
+        scope.launch { refreshRecipes() }
     }
 
     /** Checks GitHub for a newer release and downloads it. With auto-update on, installs when the kitchen is idle. */
@@ -158,7 +218,10 @@ class KitchenState(private val ctx: Context, private val scope: CoroutineScope) 
         }
     }
 
-    private fun isIdle() = screen == Screen.Home && !timers.anyRunning && !showSettings
+    private fun isIdle() = screen == Screen.Home && !timers.anyRunning && !showSettings && !playing
+
+    /** True while the video player is open, so updates never interrupt a movie. */
+    var playing = false
 
     fun install() {
         val (info, file) = when (val st = update) {

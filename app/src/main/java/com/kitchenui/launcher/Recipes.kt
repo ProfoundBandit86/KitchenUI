@@ -19,6 +19,7 @@ data class Recipe(
     val ingredients: List<Ingredient>,
     val steps: List<Step>,
     val facts: List<Pair<String, String>>,
+    val photoUrl: String? = null,
 ) {
     val totalMin: Int get() = prepMin + cookMin
 }
@@ -66,6 +67,7 @@ object RecipeRepo {
                     val a = facts.getJSONArray(it)
                     a.optString(0) to a.optString(1)
                 },
+                photoUrl = o.optString("photo").ifBlank { null },
             )
         }
     }

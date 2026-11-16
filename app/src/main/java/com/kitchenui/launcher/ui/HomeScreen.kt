@@ -38,6 +38,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -196,7 +198,12 @@ private fun CenterColumn(s: KitchenState, modifier: Modifier) {
             Box(
                 Modifier.width(300.dp).fillMaxHeight().background(if (r != null) Color(r.color) else K.Surface2),
                 contentAlignment = Alignment.Center,
-            ) { Icon(Glyph.POT, Color.White.copy(alpha = 0.55f), 110.dp) }
+            ) {
+                Icon(Glyph.POT, Color.White.copy(alpha = 0.55f), 110.dp)
+                if (r?.photoUrl != null) {
+                    AsyncImage(model = r.photoUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                }
+            }
             Column(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 33.dp, vertical = 30.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
                 Text("TONIGHT'S DINNER", color = K.Accent, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 2.sp)
                 Text(r?.name ?: "Add recipes to recipes.json", fontFamily = K.Serif, fontSize = 46.sp, lineHeight = 50.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -243,7 +250,14 @@ private fun CenterColumn(s: KitchenState, modifier: Modifier) {
                         ),
                 ) {
                     Box(Modifier.fillMaxWidth().weight(1f).background(Color(rec.color)), contentAlignment = Alignment.Center) {
-                        if (rec.id == s.tonight?.id) Icon(Glyph.STAR, K.Accent, 26.dp)
+                        if (rec.photoUrl != null) {
+                            AsyncImage(model = rec.photoUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                        }
+                        if (rec.id == s.tonight?.id) {
+                            Box(Modifier.align(Alignment.TopEnd).padding(8.dp).size(36.dp).clip(RoundedCornerShape(18.dp)).background(K.Bg.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) {
+                                Icon(Glyph.STAR, K.Accent, 22.dp)
+                            }
+                        }
                     }
                     Column(Modifier.padding(horizontal = 15.dp, vertical = 13.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(rec.name, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, lineHeight = 22.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -380,7 +394,14 @@ private fun Dock(s: KitchenState) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        s.pinnedApps.take(9).forEach { app ->
+        DockTile("Watch", { s.screen = Screen.Watch }) {
+            Box(Modifier.size(70.dp).clip(RoundedCornerShape(18.dp)).background(K.Accent), contentAlignment = Alignment.Center) { Icon(Glyph.PLAY, K.Bg, 34.dp) }
+        }
+        DockTile("Live TV", { s.screen = Screen.Live }) {
+            Box(Modifier.size(70.dp).clip(RoundedCornerShape(18.dp)).background(Color(0xFF3D5A80)), contentAlignment = Alignment.Center) { Icon(Glyph.TV, K.Text, 36.dp) }
+        }
+        Box(Modifier.width(1.dp).height(70.dp).background(K.Border2))
+        s.pinnedApps.take(if (s.update is UpdateState.Ready || s.update is UpdateState.Installing || s.update is UpdateState.Downloading) 4 else 7).forEach { app ->
             DockTile(app.label, { s.launch(app) }) {
                 Image(app.icon, contentDescription = null, modifier = Modifier.size(70.dp).clip(RoundedCornerShape(18.dp)))
             }

@@ -7,6 +7,12 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.kitchenui.launcher.watch.LiveScreen
+import com.kitchenui.launcher.watch.WatchModel
+import com.kitchenui.launcher.watch.WatchScreen
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -33,8 +39,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        state.playing = false
         hideSystemBars()
         state.refreshApps()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        state.playing = true   // another screen (player or app) is in front: don't install updates now
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -46,7 +58,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         state.showSettings = false
-        if (state.screen is Screen.Drawer) state.screen = Screen.Home
+        if (state.screen !is Screen.Cook) state.screen = Screen.Home
     }
 
     private fun hideSystemBars() {
@@ -98,11 +110,17 @@ fun KitchenApp(s: KitchenState) {
         }
     }
 
+    val scope = rememberCoroutineScope()
+    val ctx = LocalContext.current
+    val watch = remember { WatchModel(ctx, scope) }
+
     DesignCanvas {
         when (val sc = s.screen) {
             Screen.Home -> HomeScreen(s)
             is Screen.Cook -> CookScreen(s, sc.recipeId)
             Screen.Drawer -> AppDrawer(s)
+            Screen.Watch -> WatchScreen(s, watch)
+            Screen.Live -> LiveScreen(s, watch)
         }
         if (s.showSettings) SettingsPanel(s)
     }

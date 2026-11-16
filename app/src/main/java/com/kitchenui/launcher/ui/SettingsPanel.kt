@@ -94,6 +94,26 @@ fun SettingsPanel(s: KitchenState) {
                     Toggle("Fahrenheit (°F)", draft.fahrenheit) { draft = draft.copy(fahrenheit = it) }
                     Toggle("24-hour clock", draft.use24h) { draft = draft.copy(use24h = it) }
                 }
+                Section("Paprika 3 recipes") {
+                    if (s.paprikaSignedIn) {
+                        Text("Signed in as ${s.paprikaEmail}. Your Paprika recipes fill the recipe book, and today's meal plan sets tonight's dinner.", color = K.Muted, fontSize = 15.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Btn("Sync now", { s.syncRecipesNow() }, height = 48.dp)
+                            Btn("Sign out", { s.paprikaSignOut() }, height = 48.dp)
+                            Text(s.paprikaStatus, color = K.Muted, fontSize = 16.sp)
+                        }
+                    } else {
+                        Text("Sign in with the email and password you use for Paprika Cloud Sync.", color = K.Muted, fontSize = 15.sp)
+                        var email by remember { mutableStateOf(s.paprikaEmail) }
+                        var pw by remember { mutableStateOf("") }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Input(email, { email = it }, "Email", Modifier.weight(1f))
+                            Input(pw, { pw = it }, "Password", Modifier.weight(1f), password = true)
+                            Btn("Sign in", { scope.launch { if (s.paprikaLogin(email, pw)) pw = "" } }, primary = true, height = 48.dp)
+                        }
+                        if (s.paprikaStatus.isNotEmpty()) Text(s.paprikaStatus, color = K.Muted, fontSize = 15.sp)
+                    }
+                }
                 Section("Google Calendar") {
                     Text(
                         "In Google Calendar on a computer: Settings › your calendar › Integrate calendar › Secret address in iCal format. Paste it here.",

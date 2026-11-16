@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -152,7 +153,7 @@ fun CheckBox(checked: Boolean, size: Dp = 26.dp) {
     ) { if (checked) Icon(Glyph.CHECK, K.Bg, size * 0.65f) }
 }
 
-enum class Glyph { PLAY, PAUSE, CLOSE, CHECK, BACK, NEXT, GEAR, GRID, DOWNLOAD, PLUS, CALENDAR, POT, STAR }
+enum class Glyph { PLAY, PAUSE, CLOSE, CHECK, BACK, NEXT, GEAR, GRID, DOWNLOAD, PLUS, CALENDAR, POT, STAR, TV, SEARCH, HEART }
 
 @Composable
 fun Icon(glyph: Glyph, color: Color, size: Dp, modifier: Modifier = Modifier) {
@@ -206,6 +207,19 @@ fun Icon(glyph: Glyph, color: Color, size: Dp, modifier: Modifier = Modifier) {
                 line(0.08f, 0.46f, 0.18f, 0.46f); line(0.82f, 0.46f, 0.92f, 0.46f)
                 line(0.36f, 0.16f, 0.36f, 0.26f); line(0.5f, 0.12f, 0.5f, 0.26f); line(0.64f, 0.16f, 0.64f, 0.26f)
             }
+            Glyph.TV -> {
+                drawRoundRect(color, p(0.1f, 0.26f), Size(w * 0.8f, w * 0.56f), CornerRadius(w * 0.08f), style = stroke)
+                line(0.34f, 0.1f, 0.5f, 0.24f); line(0.66f, 0.1f, 0.5f, 0.24f)
+            }
+            Glyph.SEARCH -> { drawCircle(color, w * 0.26f, p(0.43f, 0.43f), style = stroke); line(0.62f, 0.62f, 0.86f, 0.86f) }
+            Glyph.HEART -> drawPath(Path().apply {
+                moveTo(w * 0.5f, w * 0.84f)
+                cubicTo(w * 0.1f, w * 0.56f, w * 0.06f, w * 0.3f, w * 0.26f, w * 0.2f)
+                cubicTo(w * 0.38f, w * 0.14f, w * 0.48f, w * 0.22f, w * 0.5f, w * 0.3f)
+                cubicTo(w * 0.52f, w * 0.22f, w * 0.62f, w * 0.14f, w * 0.74f, w * 0.2f)
+                cubicTo(w * 0.94f, w * 0.3f, w * 0.9f, w * 0.56f, w * 0.5f, w * 0.84f)
+                close()
+            }, color)
             Glyph.STAR -> drawPath(Path().apply {
                 for (i in 0 until 10) {
                     val rr = if (i % 2 == 0) w * 0.45f else w * 0.2f
@@ -268,4 +282,41 @@ private fun DrawScope.cloud(w: Float, color: Color, dy: Float) {
     drawCircle(color, w * 0.2f, Offset(w * 0.54f, y - w * 0.08f))
     drawCircle(color, w * 0.13f, Offset(w * 0.72f, y + w * 0.02f))
     drawRoundRect(color, Offset(w * 0.22f, y), Size(w * 0.62f, w * 0.15f), CornerRadius(w * 0.075f))
+}
+
+@Composable
+fun Input(
+    value: String,
+    onChange: (String) -> Unit,
+    hint: String,
+    modifier: Modifier = Modifier,
+    password: Boolean = false,
+    onDone: (() -> Unit)? = null,
+) {
+    val shape = RoundedCornerShape(12.dp)
+    Box(
+        modifier.height(48.dp).clip(shape).background(K.Surface2).border(1.dp, K.Border2, shape).padding(horizontal = 14.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        if (value.isEmpty()) Text(hint, color = K.Dim, fontSize = 17.sp, maxLines = 1)
+        androidx.compose.foundation.text.BasicTextField(
+            value = value,
+            onValueChange = onChange,
+            singleLine = true,
+            textStyle = androidx.compose.ui.text.TextStyle(color = K.Text, fontSize = 17.sp),
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(K.Accent),
+            visualTransformation = if (password) androidx.compose.ui.text.input.PasswordVisualTransformation()
+                else androidx.compose.ui.text.input.VisualTransformation.None,
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                imeAction = if (onDone != null) androidx.compose.ui.text.input.ImeAction.Go else androidx.compose.ui.text.input.ImeAction.Done,
+            ),
+            keyboardActions = androidx.compose.foundation.text.KeyboardActions(onAny = { onDone?.invoke() }),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+fun SectionTitle(text: String) {
+    Text(text.uppercase(), color = K.Accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.5.sp)
 }

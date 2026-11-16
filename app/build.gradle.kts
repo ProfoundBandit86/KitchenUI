@@ -68,4 +68,13 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("io.coil-kt:coil-compose:2.7.0")
+
+    // Streaming (ported from Flux TV)
+    val media3 = "1.5.0"
+    implementation("androidx.media3:media3-exoplayer:$media3")
+    implementation("androidx.media3:media3-exoplayer-hls:$media3")
+    implementation("androidx.media3:media3-ui:$media3")
+    implementation("androidx.media3:media3-datasource:$media3")
+    implementation("org.jellyfin.media3:media3-ffmpeg-decoder:$media3+1")
 }
