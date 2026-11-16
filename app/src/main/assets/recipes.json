@@ -1,0 +1,183 @@
+{
+  "recipes": [
+    {
+      "id": "lemon-garlic-roast-chicken",
+      "name": "Lemon Garlic Roast Chicken",
+      "category": "Dinner",
+      "prep": 20,
+      "cook": 85,
+      "serves": "4",
+      "color": "#5A3328",
+      "facts": [["Oven", "425°F / 220°C"], ["Done at", "165°F / 74°C in the thigh"]],
+      "ingredients": [
+        ["1", "whole chicken (4–5 lb)"],
+        ["4 tbsp", "unsalted butter, softened"],
+        ["6", "garlic cloves"],
+        ["1", "lemon"],
+        ["1 tbsp", "fresh thyme leaves"],
+        ["1½ lb", "baby potatoes, halved"],
+        ["1", "yellow onion, cut in wedges"],
+        ["2 tbsp", "olive oil"],
+        ["", "Kosher salt and black pepper"]
+      ],
+      "steps": [
+        {"text": "Heat the oven to 425°F. Pat the chicken completely dry with paper towels.", "tip": "Dry skin is what makes it crisp."},
+        {"text": "Mash the butter with 4 cloves of minced garlic, the zest of the lemon, the thyme, 1½ tsp salt and ½ tsp pepper."},
+        {"text": "Loosen the skin over the breast and rub half the butter underneath. Rub the rest all over the outside.", "tip": "Slide your fingers in from the neck end and go slowly so the skin doesn't tear."},
+        {"text": "Halve the zested lemon and put it in the cavity with the 2 remaining garlic cloves."},
+        {"text": "Toss the potatoes and onion with the olive oil and a pinch of salt. Spread them in a roasting pan and set the chicken on top."},
+        {"text": "Roast about 1 hour 10 minutes, until the thickest part of the thigh reads 165°F.", "tip": "Check at 60 minutes. If the skin browns too fast, tent it loosely with foil.", "timer": 70},
+        {"text": "Rest the chicken 15 minutes, then carve. Spoon the pan juices over the chicken and vegetables.", "timer": 15}
+      ]
+    },
+    {
+      "id": "weeknight-beef-chili",
+      "name": "Weeknight Beef Chili",
+      "category": "Dinner",
+      "prep": 15,
+      "cook": 45,
+      "serves": "6",
+      "color": "#6A2E22",
+      "facts": [["Heat", "Medium, then a low simmer"], ["Keeps", "4 days in the fridge"]],
+      "ingredients": [
+        ["1 tbsp", "vegetable oil"],
+        ["1", "large onion, diced"],
+        ["1", "green bell pepper, diced"],
+        ["4", "garlic cloves, minced"],
+        ["1½ lb", "ground beef"],
+        ["3 tbsp", "chili powder"],
+        ["2 tsp", "ground cumin"],
+        ["1 tsp", "dried oregano"],
+        ["1 tsp", "salt"],
+        ["1 can (28 oz)", "crushed tomatoes"],
+        ["2 cans (15 oz)", "kidney beans, drained"],
+        ["1 cup", "beef broth"]
+      ],
+      "steps": [
+        {"text": "Heat the oil in a large pot over medium heat. Cook the onion and bell pepper until soft.", "timer": 6},
+        {"text": "Add the garlic and cook for 1 minute, until fragrant."},
+        {"text": "Add the beef and cook, breaking it up, until no longer pink. Drain off excess fat.", "timer": 8},
+        {"text": "Stir in the chili powder, cumin, oregano and salt. Cook 1 minute."},
+        {"text": "Add the tomatoes, beans and broth. Bring to a boil, then simmer uncovered, stirring now and then.", "tip": "Add a splash more broth if it gets too thick.", "timer": 30},
+        {"text": "Taste and adjust the salt. Serve with cheese, sour cream and green onions."}
+      ]
+    },
+    {
+      "id": "garlic-butter-shrimp-pasta",
+      "name": "Garlic Butter Shrimp Pasta",
+      "category": "Dinner",
+      "prep": 10,
+      "cook": 20,
+      "serves": "4",
+      "color": "#3F4F3A",
+      "facts": [["Shrimp", "Done when pink and curled into a C"]],
+      "ingredients": [
+        ["12 oz", "linguine"],
+        ["1 lb", "large shrimp, peeled and deveined"],
+        ["4 tbsp", "butter, divided"],
+        ["5", "garlic cloves, minced"],
+        ["¼ tsp", "red pepper flakes"],
+        ["½", "lemon, juiced"],
+        ["⅓ cup", "grated parmesan"],
+        ["2 tbsp", "chopped parsley"],
+        ["", "Salt and black pepper"]
+      ],
+      "steps": [
+        {"text": "Bring a big pot of salted water to a boil. Cook the linguine until al dente. Save 1 cup of pasta water, then drain.", "timer": 10},
+        {"text": "Meanwhile, melt 2 tbsp butter in a large skillet over medium-high heat. Season the shrimp and cook 1–2 minutes per side until pink. Move to a plate.", "timer": 3},
+        {"text": "Lower the heat to medium. Melt the rest of the butter and cook the garlic and pepper flakes for 1 minute."},
+        {"text": "Add the pasta, ½ cup pasta water, lemon juice and parmesan. Toss until glossy, adding more water if needed."},
+        {"text": "Return the shrimp, scatter with parsley and serve right away."}
+      ]
+    },
+    {
+      "id": "chicken-tortilla-soup",
+      "name": "Chicken Tortilla Soup",
+      "category": "Soup",
+      "prep": 15,
+      "cook": 35,
+      "serves": "6",
+      "color": "#7A4A22",
+      "facts": [["Chicken", "Done at 165°F / 74°C"]],
+      "ingredients": [
+        ["1 tbsp", "olive oil"],
+        ["1", "onion, diced"],
+        ["3", "garlic cloves, minced"],
+        ["1", "jalapeño, seeded and minced"],
+        ["2 tsp", "ground cumin"],
+        ["1 tsp", "chili powder"],
+        ["1 can (14.5 oz)", "diced tomatoes"],
+        ["6 cups", "chicken broth"],
+        ["1½ lb", "boneless chicken breasts"],
+        ["1 can (15 oz)", "black beans, drained"],
+        ["1 cup", "corn"],
+        ["1", "lime, juiced"],
+        ["", "Tortilla chips, avocado and cilantro to serve"]
+      ],
+      "steps": [
+        {"text": "Heat the oil in a large pot over medium heat. Cook the onion until soft.", "timer": 5},
+        {"text": "Add the garlic, jalapeño, cumin and chili powder. Cook 1 minute."},
+        {"text": "Add the tomatoes, broth and whole chicken breasts. Bring to a boil, then simmer until the chicken is cooked through.", "timer": 20},
+        {"text": "Lift out the chicken and shred it with two forks."},
+        {"text": "Return the chicken with the beans and corn. Simmer 5 minutes.", "timer": 5},
+        {"text": "Stir in the lime juice and season with salt. Serve topped with crushed chips, avocado and cilantro."}
+      ]
+    },
+    {
+      "id": "banana-bread",
+      "name": "Banana Bread",
+      "category": "Baking",
+      "prep": 15,
+      "cook": 70,
+      "serves": "1 loaf",
+      "color": "#6B5330",
+      "facts": [["Oven", "350°F / 175°C"], ["Pan", "9×5 inch loaf pan"], ["Done when", "A toothpick comes out clean"]],
+      "ingredients": [
+        ["3", "very ripe bananas"],
+        ["⅓ cup", "butter, melted"],
+        ["¾ cup", "brown sugar"],
+        ["1", "egg, beaten"],
+        ["1 tsp", "vanilla extract"],
+        ["1 tsp", "baking soda"],
+        ["pinch", "salt"],
+        ["1½ cups", "all-purpose flour"]
+      ],
+      "steps": [
+        {"text": "Heat the oven to 350°F and butter a 9×5 loaf pan."},
+        {"text": "Mash the bananas in a large bowl. Stir in the melted butter."},
+        {"text": "Mix in the sugar, egg and vanilla. Sprinkle the baking soda and salt over and stir."},
+        {"text": "Add the flour and stir just until no dry streaks remain.", "tip": "Lumps are fine. Overmixing makes it tough."},
+        {"text": "Pour into the pan and bake until a toothpick in the center comes out clean.", "tip": "Start checking at 55 minutes.", "timer": 60},
+        {"text": "Cool in the pan 10 minutes, then turn out onto a rack.", "timer": 10}
+      ]
+    },
+    {
+      "id": "buttermilk-pancakes",
+      "name": "Buttermilk Pancakes",
+      "category": "Breakfast",
+      "prep": 10,
+      "cook": 20,
+      "serves": "4",
+      "color": "#7A5B2A",
+      "facts": [["Griddle", "Medium heat"], ["Makes", "About 12 pancakes"]],
+      "ingredients": [
+        ["2 cups", "all-purpose flour"],
+        ["2 tbsp", "sugar"],
+        ["2 tsp", "baking powder"],
+        ["½ tsp", "baking soda"],
+        ["½ tsp", "salt"],
+        ["2 cups", "buttermilk"],
+        ["2", "eggs"],
+        ["3 tbsp", "butter, melted"]
+      ],
+      "steps": [
+        {"text": "Whisk the flour, sugar, baking powder, baking soda and salt in a large bowl."},
+        {"text": "In another bowl, whisk the buttermilk, eggs and melted butter."},
+        {"text": "Pour the wet into the dry and stir just until combined.", "tip": "A lumpy batter makes fluffier pancakes."},
+        {"text": "Let the batter rest while the griddle heats.", "timer": 5},
+        {"text": "Pour about ¼ cup per pancake. Flip when bubbles form on top and the edges look set.", "timer": 3},
+        {"text": "Cook 1–2 minutes more until golden. Keep warm in a 200°F oven while you finish the batch."}
+      ]
+    }
+  ]
+}
