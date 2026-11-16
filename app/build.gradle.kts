@@ -18,8 +18,8 @@ android {
         versionCode = ciVersionCode
         versionName = "1.0.$ciVersionCode"
         buildConfigField("String", "UPDATE_REPO", "\"ProfoundBandit86/KitchenUI\"")
-        // Bliss OS on the OptiPlex is x86_64; arm64 kept for phones and tablets. Keeps VLC's native code small.
-        ndk { abiFilters += listOf("x86_64", "arm64-v8a") }
+        // Bliss OS on the OptiPlex is x86_64. One ABI keeps VLC's native code (and each update) small.
+        ndk { abiFilters += listOf("x86_64") }
     }
 
     signingConfigs {
