@@ -8,6 +8,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -57,7 +58,7 @@ private fun Label(text: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun InAppVideo(s: KitchenState) {
+private fun ColumnScope.InAppVideo(s: KitchenState) {
     val v = VideoSession
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Label("Now playing · ${if (v.live) "Live TV" else "KitchenUI"}", Modifier.weight(1f))
@@ -129,7 +130,7 @@ fun Progress(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun OtherApp(s: KitchenState) {
+private fun ColumnScope.OtherApp(s: KitchenState) {
     val m = s.media
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Label("Now playing · ${m.appName}", Modifier.weight(1f))
