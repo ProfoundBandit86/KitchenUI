@@ -97,16 +97,46 @@ class KitchenState(private val ctx: Context, private val scope: CoroutineScope) 
         apps = Apps.load(ctx)
         if (!prefs.hasPinned() && apps.isNotEmpty()) {
             saveSettings(settings.copy(pinned = Apps.defaultPins(apps)))
+            prefs.dockV2 = true
+        } else if (!prefs.dockV2) {
+            // Watch and Live TV became movable dock items.
+            saveSettings(settings.copy(pinned = listOf(DOCK_WATCH, DOCK_LIVE) + settings.pinned.filter { !it.startsWith("@") }))
+            prefs.dockV2 = true
         }
     }
 
-    val pinnedApps: List<AppEntry>
-        get() = settings.pinned.mapNotNull { p -> apps.firstOrNull { it.pkg == p } }
+    /** Dock items in order: DOCK_WATCH, DOCK_LIVE or an installed app's package. */
+    val dockItems: List<String>
+        get() = settings.pinned.filter { it.startsWith("@") || apps.any { a -> a.pkg == it } }
 
-    fun togglePin(app: AppEntry) {
+    fun app(pkg: String): AppEntry? = apps.firstOrNull { it.pkg == pkg }
+
+    var editDock by mutableStateOf(false)
+
+    fun togglePin(id: String) {
         val p = settings.pinned
-        saveSettings(settings.copy(pinned = if (app.pkg in p) p - app.pkg else (p + app.pkg).take(10)))
+        saveSettings(settings.copy(pinned = if (id in p) p - id else (p + id).take(12)))
     }
+
+    fun togglePin(app: AppEntry) = togglePin(app.pkg)
+
+    /** Moves a dock item left (-1) or right (+1). */
+    fun moveDock(id: String, delta: Int) {
+        val visible = dockItems
+        val i = visible.indexOf(id)
+        val j = i + delta
+        if (i < 0 || j !in visible.indices) return
+        val other = visible[j]
+        val all = settings.pinned.toMutableList()
+        val a = all.indexOf(id)
+        val b = all.indexOf(other)
+        if (a < 0 || b < 0) return
+        all[a] = other
+        all[b] = id
+        saveSettings(settings.copy(pinned = all))
+    }
+
+    val media = MediaState(ctx)
 
     fun launch(app: AppEntry) = Apps.launch(ctx, app)
 

@@ -60,6 +60,10 @@ class Prefs(ctx: Context) {
         get() = sp.getString("paprikaToken", "") ?: ""
         set(v) { sp.edit().putString("paprikaToken", v).apply() }
 
+    var dockV2: Boolean
+        get() = sp.getBoolean("dockV2", false)
+        set(v) { sp.edit().putBoolean("dockV2", v).apply() }
+
     var plannedDay: String
         get() = sp.getString("plannedDay", "") ?: ""
         set(v) { sp.edit().putString("plannedDay", v).apply() }

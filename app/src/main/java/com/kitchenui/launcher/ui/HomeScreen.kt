@@ -47,6 +47,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kitchenui.launcher.DOCK_LIVE
+import com.kitchenui.launcher.DOCK_WATCH
 import com.kitchenui.launcher.KitchenState
 import com.kitchenui.launcher.Screen
 import com.kitchenui.launcher.UpdateState
@@ -389,43 +391,137 @@ private fun ShoppingCard(s: KitchenState, modifier: Modifier) {
 @Composable
 private fun Dock(s: KitchenState) {
     val shape = RoundedCornerShape(23.dp)
+    val updating = s.update is UpdateState.Ready || s.update is UpdateState.Installing || s.update is UpdateState.Downloading
+    val showMedia = !s.editDock && (s.media.active || !s.media.granted)
+    // Room for 9 tiles; the update badge takes 3 and the media player 4.
+    val room = if (s.editDock) 12 else 9 - (if (updating) 3 else 0) - (if (showMedia) 4 else 0)
+    val items = s.dockItems
     Row(
-        Modifier.fillMaxWidth().clip(shape).background(K.Surface).border(1.dp, K.Border, shape).padding(horizontal = 23.dp, vertical = 13.dp),
+        Modifier.fillMaxWidth().clip(shape).background(K.Surface).border(1.dp, if (s.editDock) K.Accent else K.Border, shape)
+            .padding(horizontal = 23.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (s.editDock) 6.dp else 16.dp),
     ) {
-        DockTile("Watch", { s.screen = Screen.Watch }) {
-            Box(Modifier.size(70.dp).clip(RoundedCornerShape(18.dp)).background(K.Accent), contentAlignment = Alignment.Center) { Icon(Glyph.PLAY, K.Bg, 34.dp) }
-        }
-        DockTile("Live TV", { s.screen = Screen.Live }) {
-            Box(Modifier.size(70.dp).clip(RoundedCornerShape(18.dp)).background(Color(0xFF3D5A80)), contentAlignment = Alignment.Center) { Icon(Glyph.TV, K.Text, 36.dp) }
-        }
-        Box(Modifier.width(1.dp).height(70.dp).background(K.Border2))
-        s.pinnedApps.take(if (s.update is UpdateState.Ready || s.update is UpdateState.Installing || s.update is UpdateState.Downloading) 4 else 7).forEach { app ->
-            DockTile(app.label, { s.launch(app) }) {
-                Image(app.icon, contentDescription = null, modifier = Modifier.size(70.dp).clip(RoundedCornerShape(18.dp)))
+        items.take(room).forEachIndexed { i, id ->
+            val label: String
+            val icon: @Composable () -> Unit
+            val open: () -> Unit
+            when (id) {
+                DOCK_WATCH -> {
+                    label = "Watch"; open = { s.screen = Screen.Watch }
+                    icon = { Box(Modifier.size(70.dp).clip(RoundedCornerShape(18.dp)).background(K.Accent), contentAlignment = Alignment.Center) { Icon(Glyph.PLAY, K.Bg, 34.dp) } }
+                }
+                DOCK_LIVE -> {
+                    label = "Live TV"; open = { s.screen = Screen.Live }
+                    icon = { Box(Modifier.size(70.dp).clip(RoundedCornerShape(18.dp)).background(Color(0xFF3D5A80)), contentAlignment = Alignment.Center) { Icon(Glyph.TV, K.Text, 36.dp) } }
+                }
+                else -> {
+                    val app = s.app(id) ?: return@forEachIndexed
+                    label = app.label; open = { s.launch(app) }
+                    icon = { Image(app.icon, contentDescription = null, modifier = Modifier.size(70.dp).clip(RoundedCornerShape(18.dp))) }
+                }
+            }
+            if (s.editDock) {
+                EditTile(label, icon, first = i == 0, last = i == minOf(items.size, room) - 1,
+                    onLeft = { s.moveDock(id, -1) }, onRight = { s.moveDock(id, 1) }, onRemove = { s.togglePin(id) })
+            } else {
+                DockTile(label, open, onLongClick = { s.editDock = true }, icon = icon)
             }
         }
         Spacer(Modifier.weight(1f))
+        if (s.editDock) {
+            Text("Use the arrows to move · X removes · add apps from All apps", color = K.Muted, fontSize = 15.sp)
+            Btn("Done", { s.editDock = false }, primary = true, height = 54.dp)
+            return@Row
+        }
+        if (showMedia) MediaWidget(s)
         UpdateBadge(s)
-        DockTile("Settings", { s.showSettings = true }) {
+        DockTile("Settings", { s.showSettings = true }, onLongClick = { s.editDock = true }) {
             Box(Modifier.size(70.dp).clip(RoundedCornerShape(18.dp)).background(K.Border), contentAlignment = Alignment.Center) { Icon(Glyph.GEAR, K.Text, 34.dp) }
         }
-        DockTile("All apps", { s.screen = Screen.Drawer }) {
+        DockTile("All apps", { s.screen = Screen.Drawer }, onLongClick = { s.editDock = true }) {
             Box(Modifier.size(70.dp).clip(RoundedCornerShape(18.dp)).background(K.Border).border(2.dp, Color(0xFF4A4F55), RoundedCornerShape(18.dp)), contentAlignment = Alignment.Center) { Icon(Glyph.GRID, K.Text, 30.dp) }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun DockTile(label: String, onClick: () -> Unit, icon: @Composable () -> Unit) {
+private fun DockTile(label: String, onClick: () -> Unit, onLongClick: (() -> Unit)? = null, icon: @Composable () -> Unit) {
     Column(
-        Modifier.width(93.dp).clip(RoundedCornerShape(14.dp)).clickable(onClick = onClick).padding(vertical = 4.dp),
+        Modifier.width(93.dp).clip(RoundedCornerShape(14.dp)).combinedClickable(onClick = onClick, onLongClick = onLongClick).padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         icon()
         Text(label, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** A dock tile in edit mode: arrows to move it, X to take it off the dock. */
+@Composable
+private fun EditTile(
+    label: String,
+    icon: @Composable () -> Unit,
+    first: Boolean,
+    last: Boolean,
+    onLeft: () -> Unit,
+    onRight: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    Column(
+        Modifier.width(104.dp).clip(RoundedCornerShape(14.dp)).background(K.Surface2).padding(vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Box {
+            Box(Modifier.padding(6.dp)) { icon() }
+            Box(
+                Modifier.align(Alignment.TopEnd).size(30.dp).clip(RoundedCornerShape(15.dp)).background(Color(0xFF8A4F5E)).clickable(onClick = onRemove),
+                contentAlignment = Alignment.Center,
+            ) { Icon(Glyph.CLOSE, Color.White, 16.dp) }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            IconBtn(Glyph.BACK, onLeft, size = 40.dp, modifier = Modifier.then(if (first) Modifier.background(Color.Transparent) else Modifier))
+            IconBtn(Glyph.NEXT, onRight, size = 40.dp)
+        }
+        Text(label, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** Now playing from any app, with previous / play-pause / next. */
+@Composable
+private fun MediaWidget(s: KitchenState) {
+    val m = s.media
+    val shape = RoundedCornerShape(18.dp)
+    Row(
+        Modifier.width(420.dp).height(96.dp).clip(shape).background(K.Surface2).border(1.dp, K.Border, shape).padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        if (!m.granted) {
+            Column(Modifier.weight(1f)) {
+                Text("Media controls", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                Text("Allow notification access to see what's playing", color = K.Muted, fontSize = 14.sp, maxLines = 2)
+            }
+            Btn("Allow", { m.requestAccess() }, primary = true, height = 46.dp, fontSize = 16)
+            return@Row
+        }
+        Box(
+            Modifier.size(76.dp).clip(RoundedCornerShape(12.dp)).background(K.Border).clickable { m.openApp() },
+            contentAlignment = Alignment.Center,
+        ) {
+            val art = m.art
+            if (art != null) Image(art, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            else Icon(Glyph.PLAY, K.Muted, 30.dp)
+        }
+        Column(Modifier.weight(1f).clickable { m.openApp() }) {
+            Text(m.title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(listOf(m.artist, m.appName).filter { it.isNotBlank() }.joinToString(" · "), color = K.Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        IconBtn(Glyph.BACK, { m.previous() }, size = 44.dp)
+        IconBtn(if (m.playing) Glyph.PAUSE else Glyph.PLAY, { m.playPause() }, primary = true, size = 52.dp)
+        IconBtn(Glyph.NEXT, { m.next() }, size = 44.dp)
     }
 }
 

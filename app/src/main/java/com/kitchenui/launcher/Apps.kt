@@ -12,6 +12,10 @@ import androidx.core.graphics.drawable.toBitmap
 
 data class AppEntry(val label: String, val pkg: String, val cls: String, val icon: ImageBitmap)
 
+/** Dock entries that aren't apps. */
+const val DOCK_WATCH = "@watch"
+const val DOCK_LIVE = "@live"
+
 object Apps {
     private val preferred = listOf(
         "com.google.android.youtube.tv", "com.google.android.youtube",
@@ -51,7 +55,7 @@ object Apps {
     fun defaultPins(apps: List<AppEntry>): List<String> {
         val have = apps.map { it.pkg }.toSet()
         val first = preferred.filter { it in have }
-        return (first + apps.map { it.pkg }).distinct().take(8)
+        return listOf(DOCK_WATCH, DOCK_LIVE) + (first + apps.map { it.pkg }).distinct().take(7)
     }
 
     fun launch(ctx: Context, app: AppEntry) {

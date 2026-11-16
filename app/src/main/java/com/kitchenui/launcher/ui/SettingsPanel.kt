@@ -141,6 +141,13 @@ fun SettingsPanel(s: KitchenState) {
                     }
                     Text("Installed version ${BuildConfig.VERSION_NAME} · github.com/${BuildConfig.UPDATE_REPO}", color = K.Dim, fontSize = 14.sp)
                 }
+                Section("Home screen") {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Btn("Rearrange dock", { s.showSettings = false; s.editDock = true }, height = 48.dp)
+                        Btn(if (s.media.granted) "Media controls: on" else "Turn on media controls", { s.media.requestAccess() }, height = 48.dp)
+                    }
+                    Text("Tip: press and hold any dock icon to rearrange the dock. Media controls need notification access for \"Kitchen media controls\".", color = K.Dim, fontSize = 14.sp)
+                }
                 Section("Android") {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Btn("Choose home app", {

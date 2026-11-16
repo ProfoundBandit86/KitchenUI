@@ -40,6 +40,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         state.playing = false
+        state.media.start()
         hideSystemBars()
         state.refreshApps()
     }
@@ -47,6 +48,11 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         state.playing = true   // another screen (player or app) is in front: don't install updates now
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        state.media.stop()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
