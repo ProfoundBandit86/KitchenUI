@@ -9,7 +9,7 @@ val ciVersionCode = (project.findProperty("versionCode") as String?)?.toIntOrNul
 
 android {
     namespace = "com.kitchenui.launcher"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.kitchenui.launcher"
