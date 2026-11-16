@@ -110,7 +110,7 @@ fun CookScreen(s: KitchenState, recipeId: String) {
                                 Modifier.weight(1f).height(18.dp).clickable { step = k },
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Box(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(if (k <= step) K.Accent else Color(0xFF33383E)))
+                                Box(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(if (k <= step) K.Accent else K.Border2))
                             }
                         }
                     }
@@ -122,7 +122,7 @@ fun CookScreen(s: KitchenState, recipeId: String) {
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Text("Tip", color = K.Accent, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text(st.tip, color = Color(0xFFC9CCD0), fontSize = 18.sp)
+                        Text(st.tip, color = K.Text2, fontSize = 18.sp)
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(13.dp)) {
@@ -145,7 +145,7 @@ fun CookScreen(s: KitchenState, recipeId: String) {
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                         Canvas(Modifier.size(210.dp)) {
                             val sw = 14.dp.toPx()
-                            drawArc(Color(0xFF2A2E33), 0f, 360f, false, style = Stroke(sw))
+                            drawArc(K.Border, 0f, 360f, false, style = Stroke(sw))
                             drawArc(K.Accent, -90f, 360f * frac, false, style = Stroke(sw, cap = StrokeCap.Round))
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {

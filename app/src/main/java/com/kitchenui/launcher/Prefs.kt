@@ -10,6 +10,8 @@ data class Settings(
     val lon: Double = Double.NaN,
     val fahrenheit: Boolean = true,
     val use24h: Boolean = false,
+    /** "dark", "light" or "auto" (light from 7 AM to 7 PM). */
+    val theme: String = "dark",
     val icalUrl: String = "",
     val autoUpdate: Boolean = true,
     val pinned: List<String> = emptyList(),
@@ -55,6 +57,7 @@ class Prefs(ctx: Context) {
         lon = sp.getString("lon", null)?.toDoubleOrNull() ?: Double.NaN,
         fahrenheit = sp.getBoolean("fahrenheit", true),
         use24h = sp.getBoolean("use24h", false),
+        theme = sp.getString("theme", "dark") ?: "dark",
         icalUrl = sp.getString("ical", "") ?: "",
         autoUpdate = sp.getBoolean("autoUpdate", true),
         pinned = (sp.getString("pinned", "") ?: "").split(",").filter { it.isNotBlank() },
@@ -67,6 +70,7 @@ class Prefs(ctx: Context) {
             .putString("lon", if (s.lon.isNaN()) null else s.lon.toString())
             .putBoolean("fahrenheit", s.fahrenheit)
             .putBoolean("use24h", s.use24h)
+            .putString("theme", s.theme)
             .putString("ical", s.icalUrl)
             .putBoolean("autoUpdate", s.autoUpdate)
             .putString("pinned", s.pinned.joinToString(","))

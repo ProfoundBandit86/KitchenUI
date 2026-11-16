@@ -65,11 +65,22 @@ class KitchenState(private val ctx: Context, private val scope: CoroutineScope) 
 
     fun recipe(id: String): Recipe? = recipes.firstOrNull { it.id == id }
 
+    /** Applies the theme setting; called on start, on save and every clock tick (for Auto). */
+    fun applyTheme() {
+        val hour = java.time.LocalTime.now().hour
+        com.kitchenui.launcher.ui.K.light = when (settings.theme) {
+            "light" -> true
+            "auto" -> hour in 7 until 19
+            else -> false
+        }
+    }
+
     fun saveSettings(s: Settings) {
         val weatherChanged = s.lat != settings.lat || s.lon != settings.lon || s.fahrenheit != settings.fahrenheit
         val calChanged = s.icalUrl != settings.icalUrl
         settings = s
         prefs.save(s)
+        applyTheme()
         if (weatherChanged) scope.launch { refreshWeather() }
         if (calChanged) scope.launch { refreshCalendar() }
     }
@@ -210,6 +221,7 @@ class KitchenState(private val ctx: Context, private val scope: CoroutineScope) 
     }
 
     val media = MediaState(ctx)
+    val voice = VoiceSearch()
 
     fun launch(app: AppEntry) = Apps.launch(ctx, app)
 

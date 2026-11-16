@@ -1,6 +1,11 @@
 package com.kitchenui.launcher
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.os.Bundle
+import android.speech.RecognizerIntent
+import android.view.KeyEvent
+import androidx.activity.result.contract.ActivityResultContracts
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -24,11 +29,46 @@ import com.kitchenui.launcher.ui.CookScreen
 import com.kitchenui.launcher.ui.DesignCanvas
 import com.kitchenui.launcher.ui.HomeScreen
 import com.kitchenui.launcher.ui.RecipesScreen
+import com.kitchenui.launcher.ui.SearchOverlay
 import com.kitchenui.launcher.ui.SettingsPanel
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     private lateinit var state: KitchenState
+
+    // System speech recognizer (the Google app on Bliss OS with GApps). No mic permission needed here.
+    private val speech = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+        val heard = res.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (res.resultCode == RESULT_OK && !heard.isNullOrBlank()) {
+            state.voice.query = heard
+            state.runVoiceCommand(heard)?.let { state.voice.message = it }
+        }
+    }
+
+    private fun listen(): Boolean = try {
+        speech.launch(
+            Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                .putExtra(RecognizerIntent.EXTRA_PROMPT, "Search or ask KitchenUI")
+                .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+        )
+        true
+    } catch (e: ActivityNotFoundException) {
+        false
+    }
+
+    private val voiceActions = setOf(
+        Intent.ACTION_ASSIST, Intent.ACTION_VOICE_COMMAND, Intent.ACTION_SEARCH_LONG_PRESS, "android.intent.action.WEB_SEARCH",
+    )
+
+    /** The keyboard or remote search/assistant key opens voice search. */
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_SEARCH || keyCode == KeyEvent.KEYCODE_VOICE_ASSIST || keyCode == KeyEvent.KEYCODE_ASSIST) {
+            state.voice.start()
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,7 +77,10 @@ class MainActivity : ComponentActivity() {
         hideSystemBars()
         state = KitchenState(applicationContext, lifecycleScope)
         state.refreshApps()
+        state.applyTheme()
+        state.voice.listen = ::listen
         setContent { KitchenApp(state) }
+        if (intent?.action in voiceActions) state.voice.start()
     }
 
     override fun onResume() {
@@ -73,6 +116,11 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         state.showSettings = false
+        if (intent.action in voiceActions) {
+            state.voice.start()
+            return
+        }
+        state.voice.close()
         VideoSession.fullScreen = false
         if (state.screen !is Screen.Cook) state.screen = Screen.Home
     }
@@ -91,6 +139,7 @@ fun KitchenApp(s: KitchenState) {
         while (true) {
             s.now = System.currentTimeMillis()
             s.timers.tick(s.now)
+            s.applyTheme()
             delay(500)
         }
     }
@@ -131,6 +180,7 @@ fun KitchenApp(s: KitchenState) {
 
     BackHandler(enabled = true) {
         when {
+            s.voice.open -> s.voice.close()
             s.showSettings -> s.showSettings = false
             s.screen == Screen.Player && VideoSession.fullScreen -> VideoSession.fullScreen = false
             s.screen != Screen.Home -> s.screen = Screen.Home
@@ -140,6 +190,9 @@ fun KitchenApp(s: KitchenState) {
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
     val watch = remember { WatchModel(ctx, scope) }
+    LaunchedEffect(watch) {
+        s.voice.watchSearch = { q -> watch.searchFor(q); s.screen = Screen.Watch; s.voice.close() }
+    }
 
     DesignCanvas {
         when (val sc = s.screen) {
@@ -152,5 +205,6 @@ fun KitchenApp(s: KitchenState) {
             Screen.Player -> PlayerScreen(s)
         }
         if (s.showSettings) SettingsPanel(s)
+        if (s.voice.open) SearchOverlay(s)
     }
 }

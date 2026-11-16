@@ -79,7 +79,18 @@ fun PlayerScreen(s: KitchenState) {
         LaunchedEffect(Unit) { s.screen = Screen.Home }
         return
     }
-    if (v.fullScreen) FullPlayer() else SplitPlayer(s)
+    // One video view for both layouts. Switching split ↔ full screen only resizes it,
+    // so VLC keeps its video output instead of tearing it down (the long black screen).
+    val full = v.fullScreen
+    Box(Modifier.fillMaxSize()) {
+        Box(
+            if (full) Modifier.fillMaxSize().background(Color.Black)
+            else Modifier.padding(start = 30.dp, top = 26.dp).size(1004.dp, 565.dp).background(Color.Black),
+        ) {
+            VideoSurface(Modifier.fillMaxSize())
+        }
+        if (full) FullPlayer() else SplitPlayer(s)
+    }
 }
 
 @Composable
@@ -93,15 +104,14 @@ private fun FullPlayer() {
     LaunchedEffect(bar, touched, v.isPlaying, picker) {
         if (bar && v.isPlaying && picker == null) { delay(4000); bar = false }
     }
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
-        VideoSurface(Modifier.fillMaxSize())
+    Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { bar = !bar; touched++ })
         if (v.buffering && v.error == null) {
-            Text("Loading…", color = K.Text, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
+            Text("Loading…", color = K.Text, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center).clip(RoundedCornerShape(14.dp)).background(K.Bg.copy(alpha = 0.78f)).padding(horizontal = 18.dp, vertical = 10.dp))
         }
         if (bar || v.error != null) {
             Row(
-                Modifier.fillMaxWidth().background(Color(0x99000000)).padding(horizontal = 28.dp, vertical = 18.dp),
+                Modifier.fillMaxWidth().background(K.Bg.copy(alpha = 0.72f)).padding(horizontal = 28.dp, vertical = 18.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
@@ -114,7 +124,7 @@ private fun FullPlayer() {
                 Btn("Stop", { v.close() }, height = 50.dp, fontSize = 17, icon = Glyph.CLOSE)
             }
             Column(
-                Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Color(0x99000000)).padding(horizontal = 32.dp, vertical = 18.dp),
+                Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(K.Bg.copy(alpha = 0.72f)).padding(horizontal = 32.dp, vertical = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 if (!v.live) Progress()
@@ -203,10 +213,10 @@ private fun SplitPlayer(s: KitchenState) {
     Row(Modifier.fillMaxSize().padding(horizontal = 30.dp, vertical = 26.dp), horizontalArrangement = Arrangement.spacedBy(26.dp)) {
         // Video on the left at a true 16:9
         Column(Modifier.width(1004.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-            Box(Modifier.width(1004.dp).height(565.dp).clip(RoundedCornerShape(20.dp)).background(Color.Black)) {
-                VideoSurface(Modifier.fillMaxSize())
+            // The video itself is drawn underneath by PlayerScreen; this box holds its buttons.
+            Box(Modifier.width(1004.dp).height(565.dp)) {
                 Box(Modifier.fillMaxSize().clickable { v.fullScreen = true })
-                if (v.buffering && v.error == null) Text("Loading…", color = K.Text, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
+                if (v.buffering && v.error == null) Text("Loading…", color = K.Text, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center).clip(RoundedCornerShape(14.dp)).background(K.Bg.copy(alpha = 0.78f)).padding(horizontal = 18.dp, vertical = 10.dp))
                 Row(Modifier.align(Alignment.TopEnd).padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OverlayBtn("Full screen", Glyph.EXPAND) { v.fullScreen = true }
                     OverlayBtn(null, Glyph.CLOSE) { v.close() }
@@ -216,7 +226,7 @@ private fun SplitPlayer(s: KitchenState) {
             Card(Modifier.fillMaxWidth().weight(1f), padding = PaddingValues(horizontal = 26.dp, vertical = 18.dp), spacing = 10.dp) {
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text(v.title, fontFamily = K.Serif, fontSize = 30.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                    if (v.subtitle.isNotBlank()) Text(v.subtitle, color = Color(0xFFC9CCD0), fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (v.subtitle.isNotBlank()) Text(v.subtitle, color = K.Text2, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 if (!v.live) Progress()
                 Spacer(Modifier.weight(1f))
@@ -239,6 +249,10 @@ private fun SplitPlayer(s: KitchenState) {
                     Seg("Home", pane == "home", Modifier.weight(1f)) { pane = "home" }
                     Seg("Recipe book", pane == "recipes", Modifier.weight(1f)) { pane = "recipes" }
                 }
+                Box(
+                    Modifier.size(54.dp).clip(RoundedCornerShape(27.dp)).background(K.Accent).clickable { s.voice.start() },
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Glyph.MIC, K.OnAccent, 26.dp) }
                 val t = Instant.ofEpochMilli(s.now).atZone(ZoneId.systemDefault())
                 val (time, ap) = clockText(t, s.settings.use24h)
                 Text(time, fontFamily = K.Serif, fontSize = 38.sp)
@@ -294,13 +308,13 @@ private fun Seg(text: String, on: Boolean, modifier: Modifier, onClick: () -> Un
     Box(
         modifier.height(46.dp).clip(RoundedCornerShape(12.dp)).background(if (on) K.Text else Color.Transparent).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
-    ) { Text(text, color = if (on) K.Bg else Color(0xFFC9CCD0), fontSize = 17.sp, fontWeight = FontWeight.SemiBold) }
+    ) { Text(text, color = if (on) K.Bg else K.Text2, fontSize = 17.sp, fontWeight = FontWeight.SemiBold) }
 }
 
 @Composable
 private fun OverlayBtn(text: String?, glyph: Glyph, onClick: () -> Unit) {
     Row(
-        Modifier.height(46.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xB3121416)).clickable(onClick = onClick)
+        Modifier.height(46.dp).clip(RoundedCornerShape(12.dp)).background(K.Bg.copy(alpha = 0.78f)).clickable(onClick = onClick)
             .padding(horizontal = if (text == null) 12.dp else 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),

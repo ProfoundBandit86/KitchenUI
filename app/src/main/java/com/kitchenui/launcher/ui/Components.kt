@@ -21,6 +21,9 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,18 +48,35 @@ import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 
+/**
+ * KitchenUI's colors. [light] switches the whole UI between the dark and light themes;
+ * it's Compose state, so every screen recolors as soon as it changes.
+ */
 object K {
-    val Bg = Color(0xFF121416)
-    val Surface = Color(0xFF1B1E21)
-    val Surface2 = Color(0xFF22262A)
-    val Border = Color(0xFF2A2E33)
-    val Border2 = Color(0xFF3A3F45)
-    val Text = Color(0xFFF3F1EC)
-    val Muted = Color(0xFFA3A7AD)
-    val Dim = Color(0xFF8A8F95)
-    val Accent = Color(0xFFF4A259)
-    val Sage = Color(0xFF8FC1A9)
-    val Blue = Color(0xFF7FB2E5)
+    var light by mutableStateOf(false)
+    private fun pick(dark: Long, lightC: Long) = Color(if (light) lightC else dark)
+
+    val Bg get() = pick(0xFF121416, 0xFFF4F1EA)
+    val Surface get() = pick(0xFF1B1E21, 0xFFFFFFFF)
+    val Surface2 get() = pick(0xFF22262A, 0xFFEFEBE3)
+    val Border get() = pick(0xFF2A2E33, 0xFFE3DED4)
+    val Border2 get() = pick(0xFF3A3F45, 0xFFCDC6BA)
+    val Border3 get() = pick(0xFF4A4F55, 0xFFB8B0A3)
+    val Box get() = pick(0xFF5A6066, 0xFFA59D90)
+    val Text get() = pick(0xFFF3F1EC, 0xFF1B1E21)
+    /** Secondary text a step brighter than Muted. */
+    val Text2 get() = pick(0xFFC9CCD0, 0xFF3F444A)
+    val Text3 get() = pick(0xFFDADCDF, 0xFF2A2E33)
+    val Muted get() = pick(0xFFA3A7AD, 0xFF5F646B)
+    val Dim get() = pick(0xFF8A8F95, 0xFF8A8F95)
+    val Accent get() = pick(0xFFF4A259, 0xFFD9772A)
+    /** Text and icons on an Accent fill: dark in both themes. */
+    val OnAccent = Color(0xFF121416)
+    val Sage get() = pick(0xFF8FC1A9, 0xFF3E7D5F)
+    val Blue get() = pick(0xFF7FB2E5, 0xFF2F6CA8)
+    val Danger get() = pick(0xFFE58F8F, 0xFFB3423C)
+    /** Background for things that need attention (finished timer, update ready). */
+    val Warm get() = pick(0xFF3A2A1E, 0xFFFBE4CF)
     val Serif = FontFamily.Serif
 }
 
@@ -111,7 +131,7 @@ fun Btn(
     icon: Glyph? = null,
 ) {
     val shape = RoundedCornerShape(height / 3.2f)
-    val fg = if (primary) K.Bg else K.Text
+    val fg = if (primary) K.OnAccent else K.Text
     Row(
         modifier
             .height(height)
@@ -130,7 +150,7 @@ fun Btn(
 @Composable
 fun IconBtn(glyph: Glyph, onClick: () -> Unit, modifier: Modifier = Modifier, primary: Boolean = false, size: Dp = 40.dp) {
     val shape = RoundedCornerShape(size / 3.4f)
-    val fg = if (primary) K.Bg else K.Muted
+    val fg = if (primary) K.OnAccent else K.Muted
     Box(
         modifier
             .size(size)
@@ -148,12 +168,12 @@ fun CheckBox(checked: Boolean, size: Dp = 26.dp) {
         Modifier
             .size(size)
             .clip(shape)
-            .then(if (checked) Modifier.background(K.Accent) else Modifier.border(2.dp, Color(0xFF5A6066), shape)),
+            .then(if (checked) Modifier.background(K.Accent) else Modifier.border(2.dp, K.Box, shape)),
         contentAlignment = Alignment.Center,
-    ) { if (checked) Icon(Glyph.CHECK, K.Bg, size * 0.65f) }
+    ) { if (checked) Icon(Glyph.CHECK, K.OnAccent, size * 0.65f) }
 }
 
-enum class Glyph { PLAY, PAUSE, CLOSE, CHECK, BACK, NEXT, GEAR, GRID, DOWNLOAD, PLUS, CALENDAR, POT, STAR, TV, SEARCH, HEART, BOOK, MAIL, EXPAND, SPLIT, REWIND, FORWARD, SKIP_BACK, SKIP_NEXT }
+enum class Glyph { PLAY, PAUSE, CLOSE, CHECK, BACK, NEXT, GEAR, GRID, DOWNLOAD, PLUS, CALENDAR, POT, STAR, TV, SEARCH, HEART, BOOK, MAIL, EXPAND, SPLIT, REWIND, FORWARD, SKIP_BACK, SKIP_NEXT, MIC }
 
 @Composable
 fun Icon(glyph: Glyph, color: Color, size: Dp, modifier: Modifier = Modifier) {
@@ -247,6 +267,12 @@ fun Icon(glyph: Glyph, color: Color, size: Dp, modifier: Modifier = Modifier) {
                 val tip = if (back) p(0.2f, 0.36f) else p(0.8f, 0.36f)
                 drawLine(color, tip, Offset(tip.x, tip.y - w * 0.2f), strokeWidth = sw, cap = StrokeCap.Round)
                 drawLine(color, tip, Offset(tip.x + (if (back) w * 0.2f else -w * 0.2f), tip.y), strokeWidth = sw, cap = StrokeCap.Round)
+            }
+            Glyph.MIC -> {
+                drawRoundRect(color, p(0.36f, 0.1f), Size(w * 0.28f, w * 0.48f), CornerRadius(w * 0.14f))
+                drawArc(color, 0f, 180f, false, p(0.22f, 0.3f), Size(w * 0.56f, w * 0.44f), style = stroke)
+                line(0.5f, 0.74f, 0.5f, 0.88f)
+                line(0.36f, 0.88f, 0.64f, 0.88f)
             }
             Glyph.SKIP_BACK -> {
                 drawRoundRect(color, p(0.18f, 0.2f), Size(w * 0.12f, w * 0.6f), CornerRadius(w * 0.03f))

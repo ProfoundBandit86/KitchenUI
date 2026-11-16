@@ -51,6 +51,15 @@ class WatchModel(ctx: Context, private val scope: CoroutineScope) {
 
     fun open(p: Page) { stack.add(p) }
 
+    /** A search started elsewhere (voice search); the search page picks it up and runs it. */
+    var pendingQuery by mutableStateOf<String?>(null)
+
+    fun searchFor(q: String) {
+        stack.clear()
+        pendingQuery = q
+        open(Page.Search)
+    }
+
     fun back(): Boolean {
         if (showSources) { showSources = false; refresh(); return true }
         if (stack.isEmpty()) return false

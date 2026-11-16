@@ -95,6 +95,16 @@ fun SettingsPanel(s: KitchenState) {
                 Section("Display") {
                     Toggle("Fahrenheit (°F)", draft.fahrenheit) { draft = draft.copy(fahrenheit = it) }
                     Toggle("24-hour clock", draft.use24h) { draft = draft.copy(use24h = it) }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Text("Theme", fontSize = 19.sp, modifier = Modifier.weight(1f))
+                        val names = listOf("dark" to "Dark", "light" to "Light", "auto" to "Auto")
+                        Choice(names.map { it.second }, names.first { it.first == draft.theme }.second) { label ->
+                            val t = names.first { it.second == label }.first
+                            draft = draft.copy(theme = t)
+                            s.saveSettings(draft)   // preview right away
+                        }
+                    }
+                    Text("Auto is light from 7 AM to 7 PM and dark at night.", color = K.Dim, fontSize = 14.sp)
                 }
                 Section("Paprika 3 recipes") {
                     if (s.paprikaSignedIn) {
@@ -243,7 +253,7 @@ private fun HouseholdSettings(s: KitchenState) {
             }
         }, primary = true, height = 48.dp)
     }
-    if (addStatus.isNotEmpty()) Text(addStatus, color = Color(0xFFE58F8F), fontSize = 15.sp)
+    if (addStatus.isNotEmpty()) Text(addStatus, color = K.Danger, fontSize = 15.sp)
 
     MailAccountSettings(s)
     Text(
@@ -337,7 +347,7 @@ private fun MailAccountSettings(s: KitchenState) {
             scope.launch { status = s.sendTest(to) }
         }, primary = true, height = 48.dp)
     }
-    if (status.isNotEmpty()) Text(status, color = if (status.startsWith("Couldn't")) Color(0xFFE58F8F) else K.Muted, fontSize = 15.sp)
+    if (status.isNotEmpty()) Text(status, color = if (status.startsWith("Couldn't")) K.Danger else K.Muted, fontSize = 15.sp)
 }
 
 @Composable

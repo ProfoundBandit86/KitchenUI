@@ -191,7 +191,7 @@ fun PosterCard(item: JSONObject, wide: Boolean, onClick: () -> Unit) {
 @Composable
 private fun SearchPage(m: WatchModel) {
     val scope = rememberCoroutineScope()
-    var q by remember { mutableStateOf("") }
+    var q by remember { mutableStateOf(m.pendingQuery ?: "") }
     var results by remember { mutableStateOf<List<WRow>?>(null) }
     var searching by remember { mutableStateOf(false) }
     val go = {
@@ -202,6 +202,12 @@ private fun SearchPage(m: WatchModel) {
                 searching = false
             }
         }
+    }
+    LaunchedEffect(m.pendingQuery) {
+        val p = m.pendingQuery ?: return@LaunchedEffect
+        m.pendingQuery = null
+        q = p
+        go()
     }
     Column(Modifier.fillMaxSize()) {
         TopBar("Search", { m.back() })
@@ -286,9 +292,9 @@ private fun DetailPage(m: WatchModel, p: Page.Detail) {
                         mm.optString("imdbRating").ifBlank { null }?.let { "★ $it" },
                         mm.optJSONArray("genres")?.let { g -> (0 until minOf(3, g.length())).joinToString(", ") { g.optString(it) } }?.ifBlank { null },
                     )
-                    if (facts.isNotEmpty()) Text(facts.joinToString("   ·   "), color = Color(0xFFC9CCD0), fontSize = 19.sp)
+                    if (facts.isNotEmpty()) Text(facts.joinToString("   ·   "), color = K.Text2, fontSize = 19.sp)
                     val desc = mm.optString("description")
-                    if (desc.isNotBlank()) Text(desc, fontSize = 19.sp, lineHeight = 27.sp, color = Color(0xFFDADCDF), maxLines = if (episodes.isEmpty()) 7 else 3, overflow = TextOverflow.Ellipsis)
+                    if (desc.isNotBlank()) Text(desc, fontSize = 19.sp, lineHeight = 27.sp, color = K.Text3, maxLines = if (episodes.isEmpty()) 7 else 3, overflow = TextOverflow.Ellipsis)
                     error?.let { Text(it, color = K.Accent, fontSize = 17.sp) }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -74,7 +74,7 @@ private fun ColumnScope.InAppVideo(s: KitchenState) {
         Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
             Column {
                 Text(v.title, fontFamily = K.Serif, fontSize = 32.sp, lineHeight = 36.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                if (v.subtitle.isNotBlank()) Text(v.subtitle, color = Color(0xFFC9CCD0), fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (v.subtitle.isNotBlank()) Text(v.subtitle, color = K.Text2, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Transport(56.dp)
         }
@@ -148,7 +148,7 @@ private fun ColumnScope.OtherApp(s: KitchenState) {
         Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
             Column {
                 Text(m.title.ifBlank { "Something's playing" }, fontFamily = K.Serif, fontSize = 34.sp, lineHeight = 38.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                if (m.artist.isNotBlank()) Text(m.artist, color = Color(0xFFC9CCD0), fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (m.artist.isNotBlank()) Text(m.artist, color = K.Text2, fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 RoundBtn(Glyph.SKIP_BACK, 52.dp) { m.previous() }

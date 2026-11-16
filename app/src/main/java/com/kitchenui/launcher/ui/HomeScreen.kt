@@ -94,7 +94,7 @@ private fun LeftColumn(s: KitchenState, modifier: Modifier) {
         in 12..16 -> "Good afternoon"
         else -> "Good evening"
     }
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(20.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Column(Modifier.padding(start = 3.dp)) {
             Text(greeting, color = K.Muted, fontSize = 20.sp, fontWeight = FontWeight.Medium)
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -105,6 +105,7 @@ private fun LeftColumn(s: KitchenState, modifier: Modifier) {
             }
             Text(t.format(DateTimeFormatter.ofPattern("EEEE, MMMM d")), fontSize = 25.sp, fontWeight = FontWeight.Medium)
         }
+        VoiceButton(s, Modifier.fillMaxWidth())
         WeatherCard(s)
         TimersCard(s, Modifier.weight(1f).fillMaxWidth())
     }
@@ -161,7 +162,7 @@ internal fun TimersCard(s: KitchenState, modifier: Modifier) {
                 val shape = RoundedCornerShape(15.dp)
                 Row(
                     Modifier.fillMaxWidth().clip(shape)
-                        .background(if (t.done) Color(0xFF3A2A1E) else K.Surface2)
+                        .background(if (t.done) K.Warm else K.Surface2)
                         .border(2.dp, if (t.done) K.Accent else Color.Transparent, shape)
                         .clickable { tm.silence() }
                         .padding(start = 13.dp, end = 8.dp, top = 7.dp, bottom = 7.dp),
@@ -212,7 +213,7 @@ private fun CenterColumn(s: KitchenState, modifier: Modifier) {
                 if (r != null) {
                     Text(
                         "Prep ${formatMinutes(r.prepMin)}   ·   Cook ${formatMinutes(r.cookMin)}   ·   Serves ${r.serves}   ·   ${r.ingredients.size} ingredients",
-                        color = Color(0xFFC9CCD0), fontSize = 18.sp,
+                        color = K.Text2, fontSize = 18.sp,
                     )
                 }
                 Spacer(Modifier.weight(1f))
@@ -306,7 +307,7 @@ private fun CalendarCard(s: KitchenState) {
                     Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(if (isToday) K.Accent else Color.Transparent).padding(vertical = 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    val fg = if (isToday) K.Bg else K.Text
+                    val fg = if (isToday) K.OnAccent else K.Text
                     Text(d.dayOfWeek.getDisplayName(JTextStyle.NARROW, Locale.getDefault()), color = fg.copy(alpha = 0.8f), fontSize = 13.sp, fontWeight = FontWeight.Medium)
                     Text(d.dayOfMonth.toString(), color = fg, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
@@ -376,7 +377,7 @@ internal fun ShoppingCard(s: KitchenState, modifier: Modifier) {
             }
         }
         if (s.mailStatus.isNotBlank()) {
-            Text(s.mailStatus, color = if (s.mailStatus.startsWith("Couldn't")) Color(0xFFE58F8F) else K.Sage, fontSize = 14.sp, maxLines = 2)
+            Text(s.mailStatus, color = if (s.mailStatus.startsWith("Couldn't")) K.Danger else K.Sage, fontSize = 14.sp, maxLines = 2)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val add = { s.addShop(draft); draft = "" }
@@ -444,7 +445,7 @@ private fun Dock(s: KitchenState) {
             when (id) {
                 DOCK_WATCH -> {
                     label = "Watch"; open = { s.screen = Screen.Watch }
-                    icon = { Box(Modifier.size(70.dp).clip(RoundedCornerShape(18.dp)).background(K.Accent), contentAlignment = Alignment.Center) { Icon(Glyph.PLAY, K.Bg, 34.dp) } }
+                    icon = { Box(Modifier.size(70.dp).clip(RoundedCornerShape(18.dp)).background(K.Accent), contentAlignment = Alignment.Center) { Icon(Glyph.PLAY, K.OnAccent, 34.dp) } }
                 }
                 DOCK_LIVE -> {
                     label = "Live TV"; open = { s.screen = Screen.Live }
@@ -479,7 +480,7 @@ private fun Dock(s: KitchenState) {
             Box(Modifier.size(70.dp).clip(RoundedCornerShape(18.dp)).background(K.Border), contentAlignment = Alignment.Center) { Icon(Glyph.GEAR, K.Text, 34.dp) }
         }
         DockTile("All apps", { s.screen = Screen.Drawer }, onLongClick = { s.editDock = true }) {
-            Box(Modifier.size(70.dp).clip(RoundedCornerShape(18.dp)).background(K.Border).border(2.dp, Color(0xFF4A4F55), RoundedCornerShape(18.dp)), contentAlignment = Alignment.Center) { Icon(Glyph.GRID, K.Text, 30.dp) }
+            Box(Modifier.size(70.dp).clip(RoundedCornerShape(18.dp)).background(K.Border).border(2.dp, K.Border3, RoundedCornerShape(18.dp)), contentAlignment = Alignment.Center) { Icon(Glyph.GRID, K.Text, 30.dp) }
         }
     }
 }
@@ -554,7 +555,7 @@ private fun UpdateBadge(s: KitchenState) {
         else -> return
     }
     Row(
-        Modifier.height(54.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFF3A2A1E)).border(2.dp, K.Accent, RoundedCornerShape(16.dp))
+        Modifier.height(54.dp).clip(RoundedCornerShape(16.dp)).background(K.Warm).border(2.dp, K.Accent, RoundedCornerShape(16.dp))
             .clickable(onClick = action).padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
