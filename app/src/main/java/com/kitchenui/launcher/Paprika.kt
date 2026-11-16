@@ -21,6 +21,34 @@ import java.time.LocalDate
 object Paprika {
     private const val HOST = "https://www.paprikaapp.com/api"
     private fun cache(ctx: Context) = File(ctx.filesDir, "paprika.json")
+    private fun photos(ctx: Context) = File(ctx.filesDir, "paprika-photos").apply { mkdirs() }
+
+    /** optString turns JSON null into the text "null"; this doesn't. */
+    private fun JSONObject.str(k: String): String = if (!has(k) || isNull(k)) "" else optString(k).trim()
+
+    private fun photoFile(ctx: Context, uid: String, r: JSONObject): File {
+        val tag = r.str("photo_hash").ifBlank { r.str("photo") }.ifBlank { "p" }.replace(Regex("[^A-Za-z0-9._-]"), "")
+        return File(photos(ctx), "$uid-$tag.jpg")
+    }
+
+    private fun hasPhoto(r: JSONObject) = r.str("photo_url").startsWith("http") || r.str("photo").isNotBlank()
+
+    /** Paprika's photo links expire, so photos are downloaded once and kept on the device. */
+    private fun download(url: String, to: File): Boolean = runCatching {
+        val c = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+        c.connectTimeout = 15_000
+        c.readTimeout = 30_000
+        c.instanceFollowRedirects = true
+        c.setRequestProperty("User-Agent", "KitchenUI/1.0 (Android)")
+        try {
+            if (c.responseCode !in 200..299) return@runCatching false
+            val tmp = File(to.path + ".part")
+            c.inputStream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
+            tmp.length() > 0 && tmp.renameTo(to)
+        } finally {
+            c.disconnect()
+        }
+    }.getOrDefault(false)
 
     class AuthException(msg: String) : IOException(msg)
 
@@ -104,21 +132,50 @@ object Paprika {
                 }
             }.awaitAll().filterNotNull()
         }
+        // Photos: download any that aren't on the device yet. A cached recipe's link may have
+        // expired, so it is fetched again for a fresh one.
+        val withPhotos = coroutineScope {
+            fetched.map { (uid, r0) ->
+                async {
+                    gate.withPermit {
+                        var r = r0
+                        if (hasPhoto(r) && !r.optBoolean("in_trash")) {
+                            val f = photoFile(ctx, uid, r)
+                            if (!f.exists()) {
+                                var ok = r.str("photo_url").startsWith("http") && download(r.str("photo_url"), f)
+                                if (!ok) {
+                                    runCatching { get("/sync/recipe/$uid/", token) as JSONObject }.getOrNull()?.let { fresh ->
+                                        r = fresh
+                                        val url = fresh.str("photo_url")
+                                        if (url.startsWith("http")) ok = download(url, photoFile(ctx, uid, fresh))
+                                    }
+                                }
+                            }
+                        }
+                        uid to r
+                    }
+                }
+            }.awaitAll()
+        }
         val recipes = JSONObject()
-        fetched.forEach { (uid, r) -> recipes.put(uid, r) }
+        withPhotos.forEach { (uid, r) -> recipes.put(uid, r) }
+        // Remove photos of deleted or changed recipes
+        val keep = withPhotos.map { (uid, r) -> photoFile(ctx, uid, r).name }.toSet()
+        photos(ctx).listFiles()?.forEach { if (it.name !in keep) it.delete() }
 
         val meals = runCatching { get("/sync/meals/", token) as JSONArray }.getOrNull() ?: JSONArray()
 
         val all = JSONObject().put("categories", cats).put("recipes", recipes).put("meals", meals)
         cache(ctx).writeText(all.toString())
-        toRecipes(all)
+        toRecipes(ctx, all)
     }
 
     fun loadCached(ctx: Context): List<Recipe> =
-        runCatching { toRecipes(JSONObject(cache(ctx).readText())) }.getOrDefault(emptyList())
+        runCatching { toRecipes(ctx, JSONObject(cache(ctx).readText())) }.getOrDefault(emptyList())
 
     fun clear(ctx: Context) {
         cache(ctx).delete()
+        photos(ctx).deleteRecursively()
     }
 
     /** The recipe planned in Paprika's meal planner for today (dinner first). */
@@ -133,7 +190,7 @@ object Paprika {
 
     private val palette = listOf("#5A3328", "#6A2E22", "#3F4F3A", "#7A4A22", "#6B5330", "#4E3A2E", "#3D4560", "#5B4A2A")
 
-    private fun toRecipes(all: JSONObject): List<Recipe> {
+    private fun toRecipes(ctx: Context, all: JSONObject): List<Recipe> {
         val cats = all.optJSONObject("categories") ?: JSONObject()
         val recipes = all.optJSONObject("recipes") ?: return emptyList()
         val out = mutableListOf<Recipe>()
@@ -143,27 +200,28 @@ object Paprika {
             val catNames = r.optJSONArray("categories")?.let { a ->
                 (0 until a.length()).mapNotNull { cats.optString(a.optString(it)).takeIf { n -> n.isNotBlank() } }
             } ?: emptyList()
-            val prep = minutes(r.optString("prep_time"))
-            val cook = minutes(r.optString("cook_time"))
-            val total = minutes(r.optString("total_time"))
+            val prep = minutes(r.str("prep_time"))
+            val cook = minutes(r.str("cook_time"))
+            val total = minutes(r.str("total_time"))
             val facts = mutableListOf<Pair<String, String>>()
-            r.optString("source").takeIf { it.isNotBlank() }?.let { facts.add("Source" to it) }
+            r.str("source").takeIf { it.isNotBlank() }?.let { facts.add("Source" to it) }
             if (r.optInt("rating") > 0) facts.add("Rating" to "★".repeat(r.optInt("rating")))
-            r.optString("notes").takeIf { it.isNotBlank() }?.let { facts.add("Notes" to it.trim().take(160)) }
+            r.str("notes").takeIf { it.isNotBlank() }?.let { facts.add("Notes" to it.trim().take(160)) }
             out.add(
                 Recipe(
                     id = "paprika:$uid",
-                    name = r.optString("name", "Untitled"),
+                    name = r.str("name").ifBlank { "Untitled" },
                     category = catNames.firstOrNull() ?: "Recipes",
                     prepMin = prep,
                     cookMin = if (cook == 0 && total > prep) total - prep else cook,
-                    serves = r.optString("servings").trim(),
+                    serves = r.str("servings").trim(),
                     color = android.graphics.Color.parseColor(palette[Math.floorMod(uid.hashCode(), palette.size)]),
-                    ingredients = r.optString("ingredients").lines().map { it.trim() }.filter { it.isNotEmpty() }
+                    ingredients = r.str("ingredients").lines().map { it.trim() }.filter { it.isNotEmpty() }
                         .map { Ingredient("", it) },
-                    steps = directions(r.optString("directions")),
+                    steps = directions(r.str("directions")),
                     facts = facts,
-                    photoUrl = r.optString("photo_url").ifBlank { r.optString("image_url") }.ifBlank { null },
+                    photoUrl = photoFile(ctx, uid, r).takeIf { it.exists() }?.let { "file://" + it.absolutePath }
+                        ?: r.str("image_url").takeIf { it.startsWith("http") },
                 )
             )
         }

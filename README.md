@@ -44,15 +44,15 @@ Open **Watch › Sources**:
 - **Real-Debrid:** sign in with a code at real-debrid.com/device, or paste your API token.
 - **IPTV:** an Xtream Codes login (server, username, password), or an M3U playlist with an optional guide link. Turn on *Provider movies & series* to add the provider's VOD to Watch.
 
-Videos open **split screen**: the video on the left, and the kitchen on the right with a **Home / Recipe book** switch (weather, timers, tonight's dinner, shopping list, or your recipes with ingredients and steps). Tap the video or *Full screen* to fill the screen; *Split screen* or Back returns. Go Home and the video keeps playing in the now playing card in place of the recipe book. In full screen, tap the video for the seek bar and the gear for audio and subtitle tracks. *Other player* hands the stream to VLC or another installed app.
+Videos open **split screen**: the video on the left, and the kitchen on the right with a **Home / Recipe book** switch (weather, timers, tonight's dinner, shopping list, or your recipes with ingredients and steps). Tap the video or *Full screen* to fill the screen; *Split screen* or Back returns. Go Home and the video keeps playing in the now playing card in place of the recipe book. Videos play on a built-in VLC engine, so almost any codec works (HEVC, AV1, DTS, TrueHD, MKV, MPEG-TS). Audio defaults to English when the video has an English track, and subtitles start off; the *Audio* and *Subtitles* buttons change them. In full screen, tap the video to show or hide the controls. *Other player* hands the stream to VLC or another installed app.
 
 ## Using it
 
 - **Paprika:** sign in from **Settings › Paprika 3 recipes** with your Paprika Cloud Sync email and password.
 - **Recipe book:** the dock button opens every recipe with search (names and ingredients) and categories. Tap to start cooking. Press and hold to make that recipe tonight's dinner.
 - **Now playing:** while anything plays (KitchenUI's own videos, or music and video from other apps once media controls are allowed), a now playing card replaces the recipe book on the home screen.
-- **Emailing the shopping list:** in **Settings › Household**, add each person's name and email, then a Gmail address and [app password](https://myaccount.google.com/apppasswords) to send from. The shopping list gets a *Send to NAME* button for each person; it emails what's still unchecked. Emails are flagged high priority and the subject always starts "KitchenUI shopping list", so a Gmail filter on that subject (*Never send it to Spam*, *Always mark it as important*, *Star it*) keeps them on top.
-- **All apps:** press and hold an app to pin it to or unpin it from the dock.
+- **Emailing the shopping list:** in **Settings › Household**, add each person's name and email, then the email account to send from: enter the address and password and tap *Find settings* (works with Gmail, Outlook, Yahoo, iCloud and most providers; otherwise enter the SMTP and IMAP/POP3 servers yourself). Mail goes out over SMTP; IMAP or POP3 is used to test the sign-in, and with IMAP a copy is saved in your Sent folder. Providers with 2-step verification need an app password. The shopping list gets a *Send to NAME* button for each person; it emails what's still unchecked. Emails are flagged high priority and the subject always starts "KitchenUI shopping list", so a mail rule on that subject (never spam, mark important, star or flag) keeps them on top.
+- **All apps:** press and hold an app to add it to the dock, hide it, or open its app info. *Hidden apps* lists hidden ones; hold one to show it again.
 - **Timers:** tap a finished timer to silence it.
 
 ## Adding recipes

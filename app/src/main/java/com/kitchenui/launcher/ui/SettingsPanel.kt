@@ -245,39 +245,111 @@ private fun HouseholdSettings(s: KitchenState) {
     }
     if (addStatus.isNotEmpty()) Text(addStatus, color = Color(0xFFE58F8F), fontSize = 15.sp)
 
+    MailAccountSettings(s)
+    Text(
+        "So the list is never buried: it's sent from your own account, flagged high priority, and the subject always starts " +
+            "\"KitchenUI shopping list\". Make one rule in your mail app for that subject: never send to spam, " +
+            "mark as important, and star or flag it. The email reminds everyone how.",
+        color = K.Dim, fontSize = 14.sp,
+    )
+}
+
+/** Any provider: SMTP to send, IMAP or POP3 to check the sign-in (IMAP also saves a copy to Sent). */
+@Composable
+private fun MailAccountSettings(s: KitchenState) {
+    val scope = rememberCoroutineScope()
+    var a by remember { mutableStateOf(s.mail) }
+    var smtpPort by remember { mutableStateOf(s.mail.smtpPort.toString()) }
+    var inPort by remember { mutableStateOf(s.mail.inPort.toString()) }
+    var status by remember { mutableStateOf("") }
+    fun current() = a.copy(smtpPort = smtpPort.toIntOrNull() ?: 465, inPort = inPort.toIntOrNull() ?: 993)
+
     Text("Send from", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
     Text(
-        "Use a Gmail address and an app password (Google Account › Security › 2-Step Verification › App passwords). " +
-            "Your normal Gmail password won't work.",
+        "Works with any email provider. Enter your address and tap Find settings. Gmail, Yahoo, iCloud and Outlook need an " +
+            "app password when 2-step verification is on.",
         color = K.Muted, fontSize = 15.sp,
     )
-    var acct by remember { mutableStateOf(s.mail) }
-    var portText by remember { mutableStateOf(s.mail.port.toString()) }
-    var status by remember { mutableStateOf("") }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Input(acct.email, { acct = acct.copy(email = it) }, "you@gmail.com", Modifier.weight(1f))
-        Input(acct.password, { acct = acct.copy(password = it) }, "App password", Modifier.weight(1f), password = true)
+        Input(a.email, { a = a.copy(email = it) }, "you@example.com", Modifier.weight(1f))
+        Input(a.password, { a = a.copy(password = it) }, "Password or app password", Modifier.weight(1f), password = true)
+        Btn("Find settings", {
+            status = "Looking up ${a.email.substringAfter('@', "your provider")}…"
+            scope.launch {
+                val f = com.kitchenui.launcher.Mailer.detect(a.email.trim())
+                if (f == null) {
+                    status = "Couldn't find settings for that address. Enter them from your provider's help page."
+                } else {
+                    a = a.copy(
+                        smtpHost = f.smtpHost, smtpSecurity = f.smtpSecurity,
+                        inType = f.inType, inHost = f.inHost, inSecurity = f.inSecurity,
+                        user = if (f.userIsLocalPart) a.email.substringBefore('@') else "",
+                    )
+                    smtpPort = f.smtpPort.toString()
+                    inPort = f.inPort.toString()
+                    status = "Found the settings. Tap Test sign-in."
+                }
+            }
+        }, height = 48.dp)
     }
+    Input(a.user, { a = a.copy(user = it) }, "Username (leave empty to use the email address)", Modifier.fillMaxWidth())
+
+    Text("Outgoing (SMTP)", color = K.Muted, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Input(acct.host, { acct = acct.copy(host = it) }, "smtp.gmail.com", Modifier.weight(1f))
-        Input(portText, { portText = it.filter { c -> c.isDigit() }.take(5) }, "465", Modifier.width(110.dp))
-        Btn("Save", {
-            s.saveMail(MailAccount(acct.email, acct.password, acct.host.ifBlank { "smtp.gmail.com" }, portText.toIntOrNull() ?: 465))
-            status = "Saved"
+        Input(a.smtpHost, { a = a.copy(smtpHost = it) }, "smtp.example.com", Modifier.weight(1f))
+        Input(smtpPort, { smtpPort = it.filter { c -> c.isDigit() }.take(5) }, "465", Modifier.width(100.dp))
+        Choice(listOf("SSL", "STARTTLS"), a.smtpSecurity) { a = a.copy(smtpSecurity = it); smtpPort = if (it == "SSL") "465" else "587" }
+    }
+
+    Text("Incoming", color = K.Muted, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Choice(listOf("IMAP", "POP3", "None"), a.inType.ifBlank { "None" }) { t ->
+            a = a.copy(inType = if (t == "None") "" else t)
+            inPort = when {
+                t == "IMAP" -> if (a.inSecurity == "SSL") "993" else "143"
+                t == "POP3" -> if (a.inSecurity == "SSL") "995" else "110"
+                else -> inPort
+            }
+        }
+        if (a.inType.isNotBlank()) {
+            Input(a.inHost, { a = a.copy(inHost = it) }, if (a.inType == "POP3") "pop.example.com" else "imap.example.com", Modifier.weight(1f))
+            Input(inPort, { inPort = it.filter { c -> c.isDigit() }.take(5) }, "993", Modifier.width(100.dp))
+            Choice(listOf("SSL", "STARTTLS"), a.inSecurity) { sec ->
+                a = a.copy(inSecurity = sec)
+                inPort = if (a.inType == "POP3") (if (sec == "SSL") "995" else "110") else (if (sec == "SSL") "993" else "143")
+            }
+        }
+    }
+    if (a.inType == "IMAP") Toggle("Save a copy in my Sent folder", a.saveSent) { a = a.copy(saveSent = it) }
+
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Btn("Save", { s.saveMail(current()); status = "Saved" }, height = 48.dp)
+        Btn("Test sign-in", {
+            s.saveMail(current())
+            status = "Signing in…"
+            scope.launch { status = s.verifyMail() }
         }, height = 48.dp)
         val first = s.members.firstOrNull()
-        Btn(if (first != null) "Send test to ${first.name}" else "Send test", {
-            s.saveMail(MailAccount(acct.email, acct.password, acct.host.ifBlank { "smtp.gmail.com" }, portText.toIntOrNull() ?: 465))
-            val to = first ?: Member("Me", acct.email.trim())
+        Btn(if (first != null) "Send test to ${first.name}" else "Send test to me", {
+            s.saveMail(current())
+            val to = first ?: Member("Me", a.email.trim())
             status = "Sending…"
             scope.launch { status = s.sendTest(to) }
         }, primary = true, height = 48.dp)
     }
     if (status.isNotEmpty()) Text(status, color = if (status.startsWith("Couldn't")) Color(0xFFE58F8F) else K.Muted, fontSize = 15.sp)
-    Text(
-        "So the list is never buried: it's sent from your own account, flagged high priority, and the subject always starts " +
-            "\"KitchenUI shopping list\". In Gmail, make one filter for that subject with \"Never send it to Spam\", " +
-            "\"Always mark it as important\" and \"Star it\". The email reminds everyone how.",
-        color = K.Dim, fontSize = 14.sp,
-    )
+}
+
+@Composable
+private fun Choice(options: List<String>, selected: String, onPick: (String) -> Unit) {
+    Row(Modifier.clip(RoundedCornerShape(12.dp)).background(K.Surface2).padding(3.dp)) {
+        options.forEach { o ->
+            val on = o == selected
+            Box(
+                Modifier.height(42.dp).clip(RoundedCornerShape(10.dp)).background(if (on) K.Text else Color.Transparent)
+                    .clickable { onPick(o) }.padding(horizontal = 14.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text(o, color = if (on) K.Bg else K.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold) }
+        }
+    }
 }

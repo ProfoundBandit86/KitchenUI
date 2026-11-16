@@ -111,7 +111,9 @@ class KitchenState(private val ctx: Context, private val scope: CoroutineScope) 
     }
 
     fun saveMail(a: MailAccount) {
-        mail = a.copy(email = a.email.trim(), password = a.password.replace(" ", ""), host = a.host.trim())
+        // Gmail shows app passwords in groups of four; the spaces aren't part of it.
+        val pw = if (a.smtpHost.contains("gmail", true)) a.password.replace(" ", "") else a.password
+        mail = a.copy(email = a.email.trim(), user = a.user.trim(), password = pw, smtpHost = a.smtpHost.trim(), inHost = a.inHost.trim())
         prefs.mail = mail
     }
 
@@ -131,6 +133,12 @@ class KitchenState(private val ctx: Context, private val scope: CoroutineScope) 
             }
             mailSending = false
         }
+    }
+
+    suspend fun verifyMail(): String = try {
+        Mailer.verify(mail)
+    } catch (e: Exception) {
+        "Couldn't sign in: ${e.message ?: "check the settings"}"
     }
 
     suspend fun sendTest(to: Member): String = try {
@@ -176,6 +184,14 @@ class KitchenState(private val ctx: Context, private val scope: CoroutineScope) 
     }
 
     fun togglePin(app: AppEntry) = togglePin(app.pkg)
+
+    var hiddenApps by mutableStateOf(prefs.hidden)
+        private set
+
+    fun setHidden(pkg: String, hide: Boolean) {
+        hiddenApps = if (hide) hiddenApps + pkg else hiddenApps - pkg
+        prefs.hidden = hiddenApps
+    }
 
     /** Moves a dock item left (-1) or right (+1). */
     fun moveDock(id: String, delta: Int) {

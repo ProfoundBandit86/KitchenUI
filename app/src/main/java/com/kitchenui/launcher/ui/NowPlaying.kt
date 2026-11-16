@@ -68,7 +68,7 @@ private fun ColumnScope.InAppVideo(s: KitchenState) {
     Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(22.dp)) {
         // A live, tappable picture of the video
         Box(Modifier.width(250.dp).height(141.dp).clip(RoundedCornerShape(14.dp)).background(Color.Black)) {
-            VideoSurface(Modifier.fillMaxSize(), controls = false)
+            VideoSurface(Modifier.fillMaxSize())
             Box(Modifier.fillMaxSize().clickable { v.fullScreen = false; s.screen = Screen.Player })
         }
         Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {

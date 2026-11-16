@@ -18,6 +18,8 @@ android {
         versionCode = ciVersionCode
         versionName = "1.0.$ciVersionCode"
         buildConfigField("String", "UPDATE_REPO", "\"ProfoundBandit86/KitchenUI\"")
+        // Bliss OS on the OptiPlex is x86_64; arm64 kept for phones and tablets. Keeps VLC's native code small.
+        ndk { abiFilters += listOf("x86_64", "arm64-v8a") }
     }
 
     signingConfigs {
@@ -45,9 +47,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
     lint {
         checkReleaseBuilds = false
         abortOnError = false
@@ -71,10 +70,12 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
 
     // Streaming (ported from Flux TV)
-    val media3 = "1.5.0"
-    implementation("androidx.media3:media3-exoplayer:$media3")
-    implementation("androidx.media3:media3-exoplayer-hls:$media3")
-    implementation("androidx.media3:media3-ui:$media3")
-    implementation("androidx.media3:media3-datasource:$media3")
-    implementation("org.jellyfin.media3:media3-ffmpeg-decoder:$media3+1")
+    // Built-in VLC: plays nearly every codec and container, with its own software decoders
+    implementation("org.videolan.android:libvlc-all:3.7.6")
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }

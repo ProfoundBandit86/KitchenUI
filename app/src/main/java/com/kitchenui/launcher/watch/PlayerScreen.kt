@@ -1,9 +1,11 @@
 package com.kitchenui.launcher.watch
 
-import android.view.View
-import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -36,8 +39,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.ui.PlayerView
+import org.videolan.libvlc.util.VLCVideoLayout
+import kotlinx.coroutines.delay
 import com.kitchenui.launcher.KitchenState
 import com.kitchenui.launcher.Screen
 import com.kitchenui.launcher.Weather
@@ -57,30 +60,13 @@ import com.kitchenui.launcher.ui.clockText
 import java.time.Instant
 import java.time.ZoneId
 
-/** Shows the session's video. With [controls] on, the standard player bar (seek, tracks) appears on tap. */
-@OptIn(UnstableApi::class)
+/** Shows the session's video (VLC draws into this view). */
 @Composable
-fun VideoSurface(modifier: Modifier, controls: Boolean, onControls: (Boolean) -> Unit = {}) {
+fun VideoSurface(modifier: Modifier) {
     AndroidView(
-        factory = { c ->
-            PlayerView(c).apply {
-                setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
-                setShowNextButton(false)
-                setShowPreviousButton(false)
-                controllerShowTimeoutMs = 4000
-                setShutterBackgroundColor(android.graphics.Color.BLACK)
-                setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { vis -> onControls(vis == View.VISIBLE) })
-            }
-        },
-        update = { pv ->
-            if (pv.player !== VideoSession.player) pv.player = VideoSession.player
-            pv.useController = controls
-            if (VideoSession.live) {
-                pv.setShowFastForwardButton(false)
-                pv.setShowRewindButton(false)
-            }
-        },
-        onRelease = { it.player = null },
+        factory = { c -> VLCVideoLayout(c).also { VideoSession.attach(it) } },
+        update = { VideoSession.attach(it) },
+        onRelease = { VideoSession.detach(it) },
         modifier = modifier,
     )
 }
@@ -101,8 +87,18 @@ private fun FullPlayer() {
     val v = VideoSession
     val ctx = LocalContext.current
     var bar by remember { mutableStateOf(true) }
+    var touched by remember { mutableIntStateOf(0) }
+    var picker by remember { mutableStateOf<String?>(null) }
+    // The controls fade after 4 seconds of no touches while playing.
+    LaunchedEffect(bar, touched, v.isPlaying, picker) {
+        if (bar && v.isPlaying && picker == null) { delay(4000); bar = false }
+    }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        VideoSurface(Modifier.fillMaxSize(), controls = true) { bar = it }
+        VideoSurface(Modifier.fillMaxSize())
+        Box(Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { bar = !bar; touched++ })
+        if (v.buffering && v.error == null) {
+            Text("Loading…", color = K.Text, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
+        }
         if (bar || v.error != null) {
             Row(
                 Modifier.fillMaxWidth().background(Color(0x99000000)).padding(horizontal = 28.dp, vertical = 18.dp),
@@ -114,16 +110,65 @@ private fun FullPlayer() {
                     Text(v.title, color = K.Text, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     if (v.subtitle.isNotBlank()) Text(v.subtitle, color = K.Muted, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                if (v.live) {
-                    Btn("Channel −", { v.zap(-1) }, height = 50.dp, fontSize = 17)
-                    Btn("Channel +", { v.zap(1) }, height = 50.dp, fontSize = 17)
-                } else {
-                    Btn("Other player", { v.openExternal(ctx) }, height = 50.dp, fontSize = 17)
-                }
+                if (!v.live) Btn("Other player", { v.openExternal(ctx) }, height = 50.dp, fontSize = 17)
                 Btn("Stop", { v.close() }, height = 50.dp, fontSize = 17, icon = Glyph.CLOSE)
             }
+            Column(
+                Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Color(0x99000000)).padding(horizontal = 32.dp, vertical = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (!v.live) Progress()
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Transport(72.dp)
+                    Spacer(Modifier.weight(1f))
+                    Btn("Audio", { picker = "audio"; touched++ }, height = 52.dp, fontSize = 17)
+                    Btn("Subtitles", { picker = "subs"; touched++ }, height = 52.dp, fontSize = 17)
+                }
+            }
         }
+        picker?.let { TrackPicker(it) { picker = null } }
         ErrorBox()
+    }
+}
+
+/** Lists audio or subtitle tracks; English audio and subtitles off are the defaults. */
+@Composable
+fun TrackPicker(kind: String, onClose: () -> Unit) {
+    val v = VideoSession
+    @Suppress("UNUSED_VARIABLE") val version = v.tracksVersion   // refresh when tracks change
+    val tracks = if (kind == "audio") v.audioTracks() else v.subtitleTracks()
+    val current = if (kind == "audio") v.audioTrack else v.subtitleTrack
+    Box(
+        Modifier.fillMaxSize().background(Color(0xAA000000))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClose),
+        contentAlignment = Alignment.Center,
+    ) {
+        Card(
+            Modifier.width(520.dp).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
+            radius = 24.dp, padding = PaddingValues(24.dp), spacing = 8.dp,
+        ) {
+            Text(if (kind == "audio") "Audio" else "Subtitles", fontFamily = K.Serif, fontSize = 30.sp)
+            if (tracks.isEmpty()) Text("No other tracks in this video", color = K.Muted, fontSize = 17.sp)
+            LazyColumn(Modifier.heightIn(max = 460.dp)) {
+                items(tracks) { t ->
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                            .background(if (t.id == current) K.Surface2 else Color.Transparent)
+                            .clickable {
+                                if (kind == "audio") v.pickAudio(t.id) else v.pickSubtitles(t.id)
+                                onClose()
+                            }
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Box(Modifier.size(24.dp)) { if (t.id == current) Icon(Glyph.CHECK, K.Accent, 24.dp) }
+                        Text(t.name, fontSize = 19.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+            Btn("Close", onClose, Modifier.fillMaxWidth(), height = 50.dp)
+        }
     }
 }
 
@@ -153,12 +198,15 @@ private fun SplitPlayer(s: KitchenState) {
     val v = VideoSession
     val ctx = LocalContext.current
     var pane by rememberSaveable { mutableStateOf("home") }
+    var picker by remember { mutableStateOf<String?>(null) }
+    Box(Modifier.fillMaxSize()) {
     Row(Modifier.fillMaxSize().padding(horizontal = 30.dp, vertical = 26.dp), horizontalArrangement = Arrangement.spacedBy(26.dp)) {
         // Video on the left at a true 16:9
         Column(Modifier.width(1004.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(18.dp)) {
             Box(Modifier.width(1004.dp).height(565.dp).clip(RoundedCornerShape(20.dp)).background(Color.Black)) {
-                VideoSurface(Modifier.fillMaxSize(), controls = false)
+                VideoSurface(Modifier.fillMaxSize())
                 Box(Modifier.fillMaxSize().clickable { v.fullScreen = true })
+                if (v.buffering && v.error == null) Text("Loading…", color = K.Text, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
                 Row(Modifier.align(Alignment.TopEnd).padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OverlayBtn("Full screen", Glyph.EXPAND) { v.fullScreen = true }
                     OverlayBtn(null, Glyph.CLOSE) { v.close() }
@@ -175,7 +223,8 @@ private fun SplitPlayer(s: KitchenState) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Transport(68.dp)
                     Spacer(Modifier.weight(1f))
-                    if (!v.live) Btn("Other player", { v.openExternal(ctx) }, height = 52.dp, fontSize = 16)
+                    Btn("Audio", { picker = "audio" }, height = 52.dp, fontSize = 16)
+                    Btn("Subtitles", { picker = "subs" }, height = 52.dp, fontSize = 16)
                     Btn("Home", { s.screen = Screen.Home }, height = 52.dp, fontSize = 16)
                 }
             }
@@ -197,6 +246,8 @@ private fun SplitPlayer(s: KitchenState) {
             }
             if (pane == "home") HomePane(s) else RecipeBookCompact(s, Modifier.weight(1f).fillMaxWidth())
         }
+    }
+    picker?.let { TrackPicker(it) { picker = null } }
     }
 }
 

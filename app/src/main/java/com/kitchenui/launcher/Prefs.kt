@@ -22,9 +22,26 @@ data class ShopItem(val name: String, val done: Boolean)
 /** Someone in the house the shopping list can be emailed to. */
 data class Member(val name: String, val email: String)
 
-/** The account KitchenUI sends email from (Gmail with an app password by default). */
-data class MailAccount(val email: String = "", val password: String = "", val host: String = "smtp.gmail.com", val port: Int = 465) {
-    val ready: Boolean get() = email.isNotBlank() && password.isNotBlank() && host.isNotBlank()
+/**
+ * The email account KitchenUI sends from. Mail always goes out over SMTP; the incoming
+ * server (IMAP or POP3) is used to check the sign-in, and with IMAP to keep a copy in Sent.
+ * Security is "SSL" (implicit TLS) or "STARTTLS".
+ */
+data class MailAccount(
+    val email: String = "",
+    val user: String = "",
+    val password: String = "",
+    val smtpHost: String = "",
+    val smtpPort: Int = 465,
+    val smtpSecurity: String = "SSL",
+    val inType: String = "IMAP",      // "IMAP", "POP3" or "" for none
+    val inHost: String = "",
+    val inPort: Int = 993,
+    val inSecurity: String = "SSL",
+    val saveSent: Boolean = true,
+) {
+    val login: String get() = user.ifBlank { email }
+    val ready: Boolean get() = email.isNotBlank() && password.isNotBlank() && smtpHost.isNotBlank()
 }
 
 class Prefs(ctx: Context) {
@@ -110,16 +127,30 @@ class Prefs(ctx: Context) {
     var mail: MailAccount
         get() = MailAccount(
             email = sp.getString("mailEmail", "") ?: "",
+            user = sp.getString("mailUser", "") ?: "",
             password = sp.getString("mailPassword", "") ?: "",
-            host = sp.getString("mailHost", "smtp.gmail.com") ?: "smtp.gmail.com",
-            port = sp.getInt("mailPort", 465),
+            smtpHost = sp.getString("mailHost", "") ?: "",
+            smtpPort = sp.getInt("mailPort", 465),
+            smtpSecurity = sp.getString("mailSec", null) ?: if (sp.getInt("mailPort", 465) == 465) "SSL" else "STARTTLS",
+            inType = sp.getString("inType", "IMAP") ?: "IMAP",
+            inHost = sp.getString("inHost", "") ?: "",
+            inPort = sp.getInt("inPort", 993),
+            inSecurity = sp.getString("inSec", "SSL") ?: "SSL",
+            saveSent = sp.getBoolean("saveSent", true),
         )
         set(v) {
-            sp.edit().putString("mailEmail", v.email).putString("mailPassword", v.password)
-                .putString("mailHost", v.host).putInt("mailPort", v.port).apply()
+            sp.edit().putString("mailEmail", v.email).putString("mailUser", v.user).putString("mailPassword", v.password)
+                .putString("mailHost", v.smtpHost).putInt("mailPort", v.smtpPort).putString("mailSec", v.smtpSecurity)
+                .putString("inType", v.inType).putString("inHost", v.inHost).putInt("inPort", v.inPort)
+                .putString("inSec", v.inSecurity).putBoolean("saveSent", v.saveSent).apply()
         }
 
     var dockV3: Boolean
         get() = sp.getBoolean("dockV3", false)
         set(v) { sp.edit().putBoolean("dockV3", v).apply() }
+
+    /** Packages hidden from All apps. */
+    var hidden: Set<String>
+        get() = (sp.getString("hidden", "") ?: "").split(",").filter { it.isNotBlank() }.toSet()
+        set(v) { sp.edit().putString("hidden", v.joinToString(",")).apply() }
 }
