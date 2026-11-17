@@ -179,6 +179,12 @@ class KitchenState(private val ctx: Context, private val scope: CoroutineScope) 
             }
             prefs.dockV3 = true
         }
+        if (!prefs.dockV4) {
+            // Voice search moved from the home screen into the dock, first in line.
+            val p = settings.pinned
+            if (DOCK_VOICE !in p) saveSettings(settings.copy(pinned = (listOf(DOCK_VOICE) + p).take(12)))
+            prefs.dockV4 = true
+        }
     }
 
     /** Dock items in order: DOCK_WATCH, DOCK_LIVE, DOCK_RECIPES or an installed app's package. */

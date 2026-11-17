@@ -54,6 +54,36 @@ class WatchModel(ctx: Context, private val scope: CoroutineScope) {
     /** A search started elsewhere (voice search); the search page picks it up and runs it. */
     var pendingQuery by mutableStateOf<String?>(null)
 
+    /** Opens search for a person or title from the details page, keeping Back working. */
+    fun searchFrom(q: String) {
+        pendingQuery = q
+        open(Page.Search)
+    }
+
+    /**
+     * "More like this": Cinemeta's most popular titles in the same genres, without this one.
+     * Works for titles from any source as long as they have genres.
+     */
+    suspend fun related(type: String, genres: List<String>, excludeId: String, excludeName: String): List<JSONObject> = withContext(Dispatchers.IO) {
+        val t = when (type) { "series", "tv", "show" -> "series"; else -> "movie" }
+        val seen = mutableSetOf(excludeId)
+        val out = mutableListOf<JSONObject>()
+        for (g in genres.take(2)) {
+            val url = "https://v3-cinemeta.strem.io/catalog/$t/top/genre=" + java.net.URLEncoder.encode(g, "UTF-8").replace("+", "%20") + ".json"
+            val metas = runCatching { JSONObject(com.kitchenui.launcher.Net.get(url)).optJSONArray("metas") }.getOrNull() ?: continue
+            for (i in 0 until metas.length()) {
+                val o = metas.optJSONObject(i) ?: continue
+                val id = o.optString("id")
+                if (id.isBlank() || id in seen || o.optString("name").equals(excludeName, true)) continue
+                seen.add(id)
+                if (!o.has("type")) o.put("type", t)
+                out.add(o)
+            }
+            if (out.size >= 20) break
+        }
+        out.take(20)
+    }
+
     fun searchFor(q: String) {
         stack.clear()
         pendingQuery = q
@@ -92,6 +122,7 @@ class WatchModel(ctx: Context, private val scope: CoroutineScope) {
     private fun localRows(): List<WRow> {
         val out = mutableListOf<WRow>()
         Store.continueWatching().takeIf { it.isNotEmpty() }?.let { out.add(WRow("Continue watching", "", it, wide = true)) }
+        Store.favorites().takeIf { it.isNotEmpty() }?.let { out.add(WRow("Favorites", "", it)) }
         Store.library().takeIf { it.isNotEmpty() }?.let { out.add(WRow("My watchlist", "", it)) }
         for (s in Store.servers()) {
             Sources.deck(s).takeIf { it.isNotEmpty() }?.let { out.add(WRow("On deck", s.name, it, wide = true)) }

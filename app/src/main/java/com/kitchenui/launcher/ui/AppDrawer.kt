@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import com.kitchenui.launcher.AppEntry
 import com.kitchenui.launcher.DOCK_LIVE
 import com.kitchenui.launcher.DOCK_RECIPES
+import com.kitchenui.launcher.DOCK_VOICE
 import com.kitchenui.launcher.DOCK_WATCH
 import com.kitchenui.launcher.KitchenState
 import com.kitchenui.launcher.Screen
@@ -61,6 +62,7 @@ fun AppDrawer(s: KitchenState) {
                 if (!showHidden) {
                     if (DOCK_WATCH !in s.settings.pinned) Btn("Add Watch to dock", { s.togglePin(DOCK_WATCH) }, height = 46.dp, fontSize = 16)
                     if (DOCK_LIVE !in s.settings.pinned) Btn("Add Live TV to dock", { s.togglePin(DOCK_LIVE) }, height = 46.dp, fontSize = 16)
+                    if (DOCK_VOICE !in s.settings.pinned) Btn("Add Search to dock", { s.togglePin(DOCK_VOICE) }, height = 46.dp, fontSize = 16)
                     if (DOCK_RECIPES !in s.settings.pinned) Btn("Add Recipe book to dock", { s.togglePin(DOCK_RECIPES) }, height = 46.dp, fontSize = 16)
                 }
                 if (hiddenCount > 0 || showHidden) {

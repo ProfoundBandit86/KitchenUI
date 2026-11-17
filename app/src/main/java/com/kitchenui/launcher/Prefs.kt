@@ -149,6 +149,10 @@ class Prefs(ctx: Context) {
                 .putString("inSec", v.inSecurity).putBoolean("saveSent", v.saveSent).apply()
         }
 
+    var dockV4: Boolean
+        get() = sp.getBoolean("dockV4", false)
+        set(v) { sp.edit().putBoolean("dockV4", v).apply() }
+
     var dockV3: Boolean
         get() = sp.getBoolean("dockV3", false)
         set(v) { sp.edit().putBoolean("dockV3", v).apply() }

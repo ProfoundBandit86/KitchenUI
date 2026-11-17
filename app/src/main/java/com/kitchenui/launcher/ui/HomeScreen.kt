@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kitchenui.launcher.DOCK_LIVE
 import com.kitchenui.launcher.DOCK_RECIPES
+import com.kitchenui.launcher.DOCK_VOICE
 import com.kitchenui.launcher.DOCK_WATCH
 import com.kitchenui.launcher.KitchenState
 import com.kitchenui.launcher.Screen
@@ -94,8 +95,8 @@ private fun LeftColumn(s: KitchenState, modifier: Modifier) {
         in 12..16 -> "Good afternoon"
         else -> "Good evening"
     }
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Column(Modifier.padding(start = 3.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(greeting, color = K.Muted, fontSize = 20.sp, fontWeight = FontWeight.Medium)
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(time, fontFamily = K.Serif, fontSize = 124.sp, lineHeight = 124.sp)
@@ -105,7 +106,6 @@ private fun LeftColumn(s: KitchenState, modifier: Modifier) {
             }
             Text(t.format(DateTimeFormatter.ofPattern("EEEE, MMMM d")), fontSize = 25.sp, fontWeight = FontWeight.Medium)
         }
-        VoiceButton(s, Modifier.fillMaxWidth())
         WeatherCard(s)
         TimersCard(s, Modifier.weight(1f).fillMaxWidth())
     }
@@ -450,6 +450,10 @@ private fun Dock(s: KitchenState) {
                 DOCK_LIVE -> {
                     label = "Live TV"; open = { s.screen = Screen.Live }
                     icon = { Box(Modifier.size(70.dp).clip(RoundedCornerShape(18.dp)).background(Color(0xFF3D5A80)), contentAlignment = Alignment.Center) { Icon(Glyph.TV, K.Text, 36.dp) } }
+                }
+                DOCK_VOICE -> {
+                    label = "Search"; open = { s.voice.start() }
+                    icon = { Box(Modifier.size(70.dp).clip(RoundedCornerShape(35.dp)).background(K.Accent), contentAlignment = Alignment.Center) { Icon(Glyph.MIC, K.OnAccent, 36.dp) } }
                 }
                 DOCK_RECIPES -> {
                     label = "Recipe book"; open = { s.screen = Screen.Recipes }

@@ -168,7 +168,19 @@ object Mailer {
             val code = sb.take(3).toString().toIntOrNull() ?: 0
             if (code != expect) {
                 c.close()
-                throw MailException(if (code == 535 || code == 534 || code == 530) refused else "Outgoing server said: " + sb.lines().first().drop(4).trim())
+                val text = sb.toString()
+                throw MailException(
+                    when {
+                        text.contains("5.7.9") || text.contains("InvalidSecondFactor") || text.contains("Application-specific", true) ->
+                            "Google won't accept your normal password here. Turn on 2-Step Verification at " +
+                                "myaccount.google.com/security, then create an app password at myaccount.google.com/apppasswords " +
+                                "and enter its 16 letters as the password."
+                        text.contains("5.7.8") || text.contains("BadCredentials") ->
+                            "Wrong email or app password. If you just made the app password, copy it again (spaces are fine)."
+                        code == 535 || code == 534 || code == 530 -> refused
+                        else -> "Outgoing server said: " + sb.lines().first().drop(4).trim()
+                    }
+                )
             }
             return sb.toString()
         }

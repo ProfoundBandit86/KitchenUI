@@ -356,6 +356,35 @@ public final class Store {
         return sortedValues(object(key("library")));
     }
 
+    // ------------------------------------------------------------ favorites (KitchenUI)
+
+    public static synchronized boolean isFavorite(String id) {
+        return object(key("favorites")).has(id);
+    }
+
+    /** Adds or removes the title from favorites. Returns true if it is now a favorite. */
+    public static synchronized boolean toggleFavorite(JSONObject meta) {
+        JSONObject fav = object(key("favorites"));
+        String id = meta.optString("id");
+        boolean added;
+        if (fav.has(id)) {
+            fav.remove(id);
+            added = false;
+        } else {
+            JSONObject e = preview(meta);
+            try { e.put("t", System.currentTimeMillis()); } catch (JSONException ignored) { }
+            try { fav.put(id, e); } catch (JSONException ignored) { }
+            added = true;
+        }
+        p.edit().putString(key("favorites"), fav.toString()).apply();
+        changes++;
+        return added;
+    }
+
+    public static synchronized List<JSONObject> favorites() {
+        return sortedValues(object(key("favorites")));
+    }
+
     // ------------------------------------------------------------ progress
 
     public static synchronized JSONObject progress(String videoId) {

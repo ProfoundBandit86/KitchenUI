@@ -236,6 +236,9 @@ private fun DetailPage(m: WatchModel, p: Page.Detail) {
     var meta by remember(p.id) { mutableStateOf<JSONObject?>(null) }
     var error by remember(p.id) { mutableStateOf<String?>(null) }
     var inLibrary by remember(p.id) { mutableStateOf(Store.inLibrary(p.id)) }
+    var favorite by remember(p.id) { mutableStateOf(Store.isFavorite(p.id)) }
+    var related by remember(p.id) { mutableStateOf<List<JSONObject>?>(null) }
+    var tab by remember(p.id) { mutableStateOf("") }
     LaunchedEffect(p.id) {
         try {
             meta = m.meta(p.type, p.id)
@@ -276,9 +279,12 @@ private fun DetailPage(m: WatchModel, p: Page.Detail) {
         Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(K.Bg, K.Bg.copy(alpha = 0.92f), K.Bg.copy(alpha = 0.55f)))))
         Column(Modifier.fillMaxSize()) {
             TopBar("", { m.back() }) {
+                Btn(if (favorite) "Favorite" else "Add to favorites", {
+                    favorite = Store.toggleFavorite(meta ?: p.preview)
+                }, primary = favorite, height = 50.dp, fontSize = 18, icon = Glyph.HEART)
                 Btn(if (inLibrary) "In watchlist" else "Watchlist", {
                     meta?.let { inLibrary = Store.toggleLibrary(it) }
-                }, height = 50.dp, fontSize = 18, icon = Glyph.HEART)
+                }, height = 50.dp, fontSize = 18, icon = if (inLibrary) Glyph.CHECK else Glyph.PLUS)
             }
             Row(Modifier.weight(1f).padding(horizontal = 47.dp), horizontalArrangement = Arrangement.spacedBy(36.dp)) {
                 Box(Modifier.width(260.dp).height(390.dp).clip(RoundedCornerShape(18.dp)).background(K.Surface2)) {
@@ -294,7 +300,7 @@ private fun DetailPage(m: WatchModel, p: Page.Detail) {
                     )
                     if (facts.isNotEmpty()) Text(facts.joinToString("   ·   "), color = K.Text2, fontSize = 19.sp)
                     val desc = mm.optString("description")
-                    if (desc.isNotBlank()) Text(desc, fontSize = 19.sp, lineHeight = 27.sp, color = K.Text3, maxLines = if (episodes.isEmpty()) 7 else 3, overflow = TextOverflow.Ellipsis)
+                    if (desc.isNotBlank()) Text(desc, fontSize = 19.sp, lineHeight = 27.sp, color = K.Text3, maxLines = 3, overflow = TextOverflow.Ellipsis)
                     error?.let { Text(it, color = K.Accent, fontSize = 17.sp) }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -312,7 +318,38 @@ private fun DetailPage(m: WatchModel, p: Page.Detail) {
                         }
                     }
 
-                    if (episodes.isNotEmpty()) {
+                    val cast = remember(meta) { castOf(mm) }
+                    val genres = remember(meta) { mm.optJSONArray("genres")?.let { g -> (0 until g.length()).map { g.optString(it) } }.orEmpty().filter { it.isNotBlank() } }
+                    LaunchedEffect(p.id, genres) {
+                        if (genres.isNotEmpty() && related == null) related = runCatching { m.related(type, genres, p.id, name) }.getOrDefault(emptyList())
+                    }
+                    val tabs = listOfNotNull(
+                        "Episodes".takeIf { episodes.isNotEmpty() },
+                        "Cast".takeIf { cast.isNotEmpty() },
+                        "More like this".takeIf { !related.isNullOrEmpty() },
+                    )
+                    val current = tab.takeIf { it in tabs } ?: tabs.firstOrNull() ?: ""
+                    if (tabs.size > 1) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                            tabs.forEach { t ->
+                                val sel = t == current
+                                val pill = RoundedCornerShape(22.dp)
+                                Box(
+                                    Modifier.height(44.dp).clip(pill)
+                                        .then(if (sel) Modifier.background(K.Accent) else Modifier.background(K.Surface.copy(alpha = 0.85f)).border(1.dp, K.Border2, pill))
+                                        .clickable { tab = t }.padding(horizontal = 20.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) { Text(t, color = if (sel) K.OnAccent else K.Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold) }
+                            }
+                        }
+                    }
+                    if (current == "Cast") CastRow(cast) { who -> m.searchFrom(who) }
+                    if (current == "More like this") {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 20.dp)) {
+                            items(related.orEmpty()) { item -> PosterCard(item, false) { m.openItem(item) } }
+                        }
+                    }
+                    if (current == "Episodes" && episodes.isNotEmpty()) {
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(seasons) { sn ->
                                 val sel = sn == season
@@ -414,6 +451,59 @@ private fun StreamsPage(m: WatchModel, info: PlayInfo) {
                         IconBtn(Glyph.PLAY, { m.play(ctx, info, st) }, primary = true, size = 50.dp)
                     }
                 }
+            }
+        }
+    }
+}
+
+/** A cast member: name, the character they play, and a photo when the source has one. */
+data class CastMember(val name: String, val role: String, val photo: String)
+
+/** Cast from Cinemeta (app_extras.cast with photos, or the cast list) or the media server's people. */
+fun castOf(meta: JSONObject): List<CastMember> {
+    meta.optJSONObject("app_extras")?.optJSONArray("cast")?.let { a ->
+        val l = (0 until a.length()).mapNotNull { i ->
+            val o = a.optJSONObject(i) ?: return@mapNotNull null
+            CastMember(o.optString("name"), o.optString("character"), o.optString("photo")).takeIf { it.name.isNotBlank() }
+        }
+        if (l.isNotEmpty()) return l
+    }
+    meta.optJSONArray("cast")?.let { a ->
+        val l = (0 until a.length()).mapNotNull { i ->
+            when (val v = a.opt(i)) {
+                is String -> CastMember(v, "", "")
+                is JSONObject -> CastMember(v.optString("name"), v.optString("character").ifBlank { v.optString("role") }, v.optString("photo").ifBlank { v.optString("thumb") })
+                else -> null
+            }?.takeIf { it.name.isNotBlank() }
+        }
+        if (l.isNotEmpty()) return l
+    }
+    meta.optJSONArray("links")?.let { a ->
+        val l = (0 until a.length()).mapNotNull { i ->
+            val o = a.optJSONObject(i) ?: return@mapNotNull null
+            if (o.optString("category").equals("Cast", true)) CastMember(o.optString("name"), "", "") else null
+        }
+        if (l.isNotEmpty()) return l
+    }
+    val directors = meta.optJSONArray("director")
+    return if (directors != null) (0 until directors.length()).map { CastMember(directors.optString(it), "Director", "") } else emptyList()
+}
+
+@Composable
+private fun CastRow(cast: List<CastMember>, onPick: (String) -> Unit) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(18.dp), contentPadding = PaddingValues(bottom = 20.dp)) {
+        items(cast) { c ->
+            Column(
+                Modifier.width(132.dp).clip(RoundedCornerShape(14.dp)).clickable { onPick(c.name) }.padding(6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Box(Modifier.size(108.dp).clip(RoundedCornerShape(54.dp)).background(K.Surface2), contentAlignment = Alignment.Center) {
+                    Text(c.name.split(' ').mapNotNull { it.firstOrNull()?.uppercase() }.take(2).joinToString(""), fontSize = 30.sp, color = K.Muted)
+                    if (c.photo.isNotBlank()) AsyncImage(model = c.photo, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                }
+                Text(c.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                if (c.role.isNotBlank()) Text(c.role, color = K.Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }
