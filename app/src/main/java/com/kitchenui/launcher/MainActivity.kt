@@ -57,6 +57,11 @@ class MainActivity : ComponentActivity() {
         false
     }
 
+    // Reload the app list only when an app is installed, removed or updated.
+    private val packages = object : android.content.BroadcastReceiver() {
+        override fun onReceive(c: android.content.Context?, i: Intent?) { state.refreshApps(force = true) }
+    }
+
     private val voiceActions = setOf(
         Intent.ACTION_ASSIST, Intent.ACTION_VOICE_COMMAND, Intent.ACTION_SEARCH_LONG_PRESS, "android.intent.action.WEB_SEARCH",
     )
@@ -79,6 +84,12 @@ class MainActivity : ComponentActivity() {
         state.refreshApps()
         state.applyTheme()
         state.voice.listen = ::listen
+        androidx.core.content.ContextCompat.registerReceiver(this, packages, android.content.IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addAction(Intent.ACTION_PACKAGE_CHANGED)
+            addDataScheme("package")
+        }, androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
         setContent { KitchenApp(state) }
         if (intent?.action in voiceActions) state.voice.start()
     }
@@ -104,6 +115,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         state.media.stop()
+        runCatching { unregisterReceiver(packages) }
         if (isFinishing) VideoSession.close()
     }
 
@@ -137,9 +149,14 @@ fun KitchenApp(s: KitchenState) {
     // Clock + timers
     LaunchedEffect(Unit) {
         while (true) {
-            s.now = System.currentTimeMillis()
-            s.timers.tick(s.now)
-            s.applyTheme()
+            val t = System.currentTimeMillis()
+            s.timers.tick(t)
+            // The clock only shows minutes: updating it once a minute stops the whole home
+            // screen redrawing twice a second.
+            if (t / 60_000 != s.now / 60_000) {
+                s.now = t
+                s.applyTheme()
+            }
             delay(500)
         }
     }
@@ -190,6 +207,14 @@ fun KitchenApp(s: KitchenState) {
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
     val watch = remember { WatchModel(ctx, scope) }
+    // Watch and Live TV load in the background while the home screen is up.
+    LaunchedEffect(watch) {
+        delay(4_000)
+        while (true) {
+            watch.preload()
+            delay(30 * 60_000L)
+        }
+    }
     LaunchedEffect(watch) {
         s.voice.watchSearch = { q -> watch.searchFor(q); s.screen = Screen.Watch; s.voice.close() }
     }

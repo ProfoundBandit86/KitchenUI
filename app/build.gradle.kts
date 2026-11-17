@@ -35,7 +35,11 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 optimizes Compose and the libraries (smoother scrolling, faster start);
+            // our own code and VLC are kept as-is in proguard-rules.pro.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("release")
         }
         debug {
@@ -68,6 +72,8 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("io.coil-kt:coil-compose:2.7.0")
+    // Installs Compose's precompiled startup and scrolling profiles on sideloaded installs (no Play Store)
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
 
     // Streaming (ported from Flux TV)
     // Built-in VLC: plays nearly every codec and container, with its own software decoders

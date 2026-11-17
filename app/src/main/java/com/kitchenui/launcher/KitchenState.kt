@@ -40,9 +40,17 @@ class KitchenState(private val ctx: Context, private val scope: CoroutineScope) 
         private set
     var paprikaStatus by mutableStateOf("")
 
-    var recipes by mutableStateOf(
-        if (prefs.paprikaToken.isNotEmpty()) Paprika.loadCached(ctx).ifEmpty { RecipeRepo.loadLocal(ctx) } else RecipeRepo.loadLocal(ctx)
-    )
+    var recipes by mutableStateOf<List<Recipe>>(emptyList())
+
+    init {
+        // Reading the saved recipe book can take a moment with hundreds of recipes; do it off the main thread.
+        scope.launch {
+            val loaded = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                if (prefs.paprikaToken.isNotEmpty()) Paprika.loadCached(ctx).ifEmpty { RecipeRepo.loadLocal(ctx) } else RecipeRepo.loadLocal(ctx)
+            }
+            if (recipes.isEmpty()) recipes = loaded
+        }
+    }
     var tonightId by mutableStateOf(prefs.tonight)
         private set
 
@@ -160,8 +168,26 @@ class KitchenState(private val ctx: Context, private val scope: CoroutineScope) 
     }
 
     // Apps
-    fun refreshApps() {
-        apps = Apps.load(ctx)
+    private var appsLoadedAt = 0L
+    private var appsLoading = false
+
+    /** Reloads the app list off the main thread. Skipped if it's fresh, unless [force] (an app was installed or removed). */
+    fun refreshApps(force: Boolean = false) {
+        if (appsLoading) return
+        if (!force && apps.isNotEmpty() && System.currentTimeMillis() - appsLoadedAt < 10 * 60_000L) return
+        appsLoading = true
+        scope.launch {
+            val list = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { Apps.load(ctx) }.getOrNull() }
+            appsLoading = false
+            if (list != null) {
+                appsLoadedAt = System.currentTimeMillis()
+                applyApps(list)
+            }
+        }
+    }
+
+    private fun applyApps(list: List<AppEntry>) {
+        apps = list
         if (!prefs.hasPinned() && apps.isNotEmpty()) {
             saveSettings(settings.copy(pinned = Apps.defaultPins(apps)))
             prefs.dockV2 = true
