@@ -48,6 +48,24 @@ object Mailer {
             page("Test from your kitchen", "<p style=\"font-size:16px\">Shopping lists will arrive like this.</p>"),
         )
 
+    /**
+     * Opens the email app (Gmail, Yahoo Mail, Outlook…) with the person, subject and list filled
+     * in; you tap Send. Uses the account already signed in to that app, so no app password.
+     */
+    fun composeInApp(ctx: android.content.Context, to: Member, items: List<String>): Boolean {
+        val i = android.content.Intent(android.content.Intent.ACTION_SENDTO, android.net.Uri.parse("mailto:" + android.net.Uri.encode(to.email.trim(), "@")))
+            .putExtra(android.content.Intent.EXTRA_EMAIL, arrayOf(to.email.trim()))
+            .putExtra(android.content.Intent.EXTRA_SUBJECT, subject(items))
+            .putExtra(android.content.Intent.EXTRA_TEXT, plain(to, items))
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        return try {
+            ctx.startActivity(i)
+            true
+        } catch (e: android.content.ActivityNotFoundException) {
+            false
+        }
+    }
+
     private fun plain(to: Member, items: List<String>): String = buildString {
         append("Hi ${to.name}, here's the shopping list from the kitchen:\n\n")
         items.forEach { append("[ ] ").append(it).append('\n') }
@@ -151,12 +169,33 @@ object Mailer {
 
     private fun b64(b: ByteArray) = Base64.encodeToString(b, Base64.NO_WRAP)
 
-    private val refused = "Sign-in refused. Check the username and password; Gmail, Yahoo, iCloud and Outlook " +
-        "need an app password when 2-step verification is on."
+    /** What to do when a provider refuses the password, by the server it came from. */
+    fun appPasswordHelp(host: String): String {
+        val h = host.lowercase()
+        return when {
+            "gmail" in h || "google" in h ->
+                "Google only accepts an app password here, never your normal password. Turn on 2-Step Verification at " +
+                    "myaccount.google.com/security, then create one at myaccount.google.com/apppasswords and enter its 16 letters."
+            "yahoo" in h ->
+                "Yahoo only accepts an app password here, never your normal password. At login.yahoo.com/account/security " +
+                    "turn on 2-step verification, then tap Generate app password and enter it here."
+            "aol" in h ->
+                "AOL needs an app password: login.aol.com/account/security › Generate app password."
+            "me.com" in h || "icloud" in h ->
+                "iCloud needs an app-specific password from account.apple.com › Sign-In and Security › App-Specific Passwords."
+            "outlook" in h || "office365" in h || "hotmail" in h || "live" in h ->
+                "Outlook.com has turned off password sign-in for mail apps on many accounts. If an app password doesn't work, " +
+                    "use the Email app sending option below instead."
+            else -> "Check the username and password. Providers with 2-step verification need an app password."
+        }
+    }
+
+    private fun refusedMsg(server: String, host: String, reply: String) =
+        "$server ($host) refused the sign-in: ${reply.trim().take(160)}\n" + appPasswordHelp(host)
 
     // ---------- SMTP ----------
 
-    private class Smtp(val c: Conn) {
+    private class Smtp(val c: Conn, val host: String) {
         fun cmd(line: String?, expect: Int): String {
             if (line != null) c.write(line)
             val sb = StringBuilder()
@@ -171,13 +210,7 @@ object Mailer {
                 val text = sb.toString()
                 throw MailException(
                     when {
-                        text.contains("5.7.9") || text.contains("InvalidSecondFactor") || text.contains("Application-specific", true) ->
-                            "Google won't accept your normal password here. Turn on 2-Step Verification at " +
-                                "myaccount.google.com/security, then create an app password at myaccount.google.com/apppasswords " +
-                                "and enter its 16 letters as the password."
-                        text.contains("5.7.8") || text.contains("BadCredentials") ->
-                            "Wrong email or app password. If you just made the app password, copy it again (spaces are fine)."
-                        code == 535 || code == 534 || code == 530 -> refused
+                        code == 535 || code == 534 || code == 530 -> refusedMsg("Outgoing server", host, text.lines().first())
                         else -> "Outgoing server said: " + sb.lines().first().drop(4).trim()
                     }
                 )
@@ -187,7 +220,7 @@ object Mailer {
     }
 
     private fun smtpLogin(acct: MailAccount): Smtp {
-        val sm = Smtp(open(acct.smtpHost, acct.smtpPort, acct.smtpSecurity == "SSL"))
+        val sm = Smtp(open(acct.smtpHost, acct.smtpPort, acct.smtpSecurity == "SSL"), acct.smtpHost)
         sm.cmd(null, 220)
         var caps = sm.cmd("EHLO kitchenui.local", 250)
         if (acct.smtpSecurity != "SSL") {
@@ -226,7 +259,7 @@ object Mailer {
 
     private fun imapQuote(s: String) = "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
-    private class Imap(val c: Conn) {
+    private class Imap(val c: Conn, val host: String) {
         private var n = 0
         /** Sends a tagged command and returns the untagged lines; throws unless OK. */
         fun cmd(line: String, literal: ByteArray? = null): List<String> {
@@ -241,7 +274,7 @@ object Mailer {
                 }
                 if (l.startsWith("$tag ")) {
                     val rest = l.substring(tag.length + 1)
-                    if (!rest.startsWith("OK")) throw MailException(if (line.startsWith("LOGIN")) refused else "Incoming server said: $rest")
+                    if (!rest.startsWith("OK")) throw MailException(if (line.startsWith("LOGIN")) refusedMsg("Incoming server", host, rest) else "Incoming server said: $rest")
                     return out
                 }
                 out.add(l)
@@ -253,7 +286,7 @@ object Mailer {
         val c = open(acct.inHost, acct.inPort, acct.inSecurity == "SSL")
         val greet = c.read()
         if (!greet.startsWith("* OK") && !greet.startsWith("* PREAUTH")) { c.close(); throw MailException("Unexpected IMAP greeting") }
-        val im = Imap(c)
+        val im = Imap(c, acct.inHost)
         if (acct.inSecurity != "SSL") {
             im.cmd("STARTTLS")
             c.upgrade(acct.inHost, acct.inPort)
@@ -292,7 +325,7 @@ object Mailer {
             fun ok(line: String?, what: String) {
                 if (line != null) c.write(line)
                 val l = c.read()
-                if (!l.startsWith("+OK")) throw MailException(if (what == "pass") refused else "Incoming server said: $l")
+                if (!l.startsWith("+OK")) throw MailException(if (what == "pass") refusedMsg("Incoming server", acct.inHost, l) else "Incoming server said: $l")
             }
             ok(null, "greet")
             if (acct.inSecurity != "SSL") {

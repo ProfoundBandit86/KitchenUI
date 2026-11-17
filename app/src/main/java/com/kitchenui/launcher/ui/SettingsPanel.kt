@@ -275,6 +275,22 @@ private fun MailAccountSettings(s: KitchenState) {
     fun current() = a.copy(smtpPort = smtpPort.toIntOrNull() ?: 465, inPort = inPort.toIntOrNull() ?: 993)
 
     Text("Send from", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text("Send with", fontSize = 17.sp)
+        Choice(listOf("Email app", "This screen"), if (a.method == "app") "Email app" else "This screen") { c ->
+            a = a.copy(method = if (c == "Email app") "app" else "smtp")
+            s.saveMail(current())
+            status = ""
+        }
+    }
+    if (a.method == "app") {
+        Text(
+            "Send to opens your email app (Gmail, Yahoo Mail, Outlook…) with the person, subject and list filled in. " +
+                "Tap Send there. It uses the account signed in to that app, so no app password is needed.",
+            color = K.Muted, fontSize = 15.sp,
+        )
+        return
+    }
     Text(
         "Works with any email provider. Enter your address and tap Find settings. Gmail, Yahoo, iCloud and Outlook need an " +
             "app password when 2-step verification is on.",
@@ -297,7 +313,7 @@ private fun MailAccountSettings(s: KitchenState) {
                     )
                     smtpPort = f.smtpPort.toString()
                     inPort = f.inPort.toString()
-                    status = "Found the settings. Tap Test sign-in."
+                    status = "Found the settings. " + com.kitchenui.launcher.Mailer.appPasswordHelp(f.smtpHost) + " Then tap Test sign-in."
                 }
             }
         }, height = 48.dp)
@@ -348,6 +364,9 @@ private fun MailAccountSettings(s: KitchenState) {
         }, primary = true, height = 48.dp)
     }
     if (status.isNotEmpty()) Text(status, color = if (status.startsWith("Couldn't")) K.Danger else K.Muted, fontSize = 15.sp)
+    if (status.startsWith("Couldn't")) {
+        Text("Or switch Send with to Email app above: it uses the email app on this screen and needs no app password.", color = K.Muted, fontSize = 15.sp)
+    }
 }
 
 @Composable

@@ -41,6 +41,8 @@ data class MailAccount(
     val inPort: Int = 993,
     val inSecurity: String = "SSL",
     val saveSent: Boolean = true,
+    /** "smtp": KitchenUI sends it. "app": opens an email app with everything filled in. */
+    val method: String = "smtp",
 ) {
     val login: String get() = user.ifBlank { email }
     val ready: Boolean get() = email.isNotBlank() && password.isNotBlank() && smtpHost.isNotBlank()
@@ -141,12 +143,14 @@ class Prefs(ctx: Context) {
             inPort = sp.getInt("inPort", 993),
             inSecurity = sp.getString("inSec", "SSL") ?: "SSL",
             saveSent = sp.getBoolean("saveSent", true),
+            method = sp.getString("mailMethod", "smtp") ?: "smtp",
         )
         set(v) {
             sp.edit().putString("mailEmail", v.email).putString("mailUser", v.user).putString("mailPassword", v.password)
                 .putString("mailHost", v.smtpHost).putInt("mailPort", v.smtpPort).putString("mailSec", v.smtpSecurity)
                 .putString("inType", v.inType).putString("inHost", v.inHost).putInt("inPort", v.inPort)
-                .putString("inSec", v.inSecurity).putBoolean("saveSent", v.saveSent).apply()
+                .putString("inSec", v.inSecurity).putBoolean("saveSent", v.saveSent)
+                .putString("mailMethod", v.method).apply()
         }
 
     var dockV4: Boolean

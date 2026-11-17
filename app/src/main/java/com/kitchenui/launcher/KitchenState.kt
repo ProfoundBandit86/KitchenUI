@@ -140,7 +140,11 @@ class KitchenState(private val ctx: Context, private val scope: CoroutineScope) 
     fun sendList(to: Member) {
         val items = shopping.filter { !it.done }.map { it.name }
         if (items.isEmpty()) { mailStatus = "Nothing to get, so nothing was sent"; return }
-        if (!mail.ready) { mailStatus = "Set up email in Settings › Household first"; return }
+        if (mail.method == "app" || !mail.ready) {
+            mailStatus = if (Mailer.composeInApp(ctx, to, items)) "Opened your email app for ${to.name}. Tap Send."
+            else "No email app found. Install Gmail or set up direct sending in Settings › Household."
+            return
+        }
         mailSending = true
         mailStatus = "Sending to ${to.name}…"
         scope.launch {
